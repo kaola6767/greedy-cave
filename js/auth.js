@@ -5,10 +5,8 @@ const AUTH_KEYS = {
     displayNames: 'greedyDisplayNames',
 };
 
-const LB_URL = 'https://raw.githubusercontent.com/kaola6767/greedy-cave/master/leaderboard.json';
-const LB_API = 'https://api.github.com/repos/kaola6767/greedy-cave/contents/leaderboard.json';
+const LB_URL = 'https://jsonblob.com/api/jsonBlob/019e17b0-de2b-7128-86f1-197c63cf678b';
 let leaderboardCache = null;
-let leaderboardSha = null;
 
 function getUsers() {
     try { return JSON.parse(localStorage.getItem(AUTH_KEYS.users)) || []; }
@@ -108,67 +106,33 @@ function restoreProgress(player, floorLevel) {
     return save.floorLevel || 1;
 }
 
-// --- Leaderboard (GitHub API) ---
-function base64Encode(str) {
-    // Unicode-safe base64
-    const bytes = new TextEncoder().encode(str);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-}
-
-// Fetch data + SHA — public API call (no auth needed for public repo)
-async function fetchLeaderboardWithSha() {
-    try {
-        // Public API — no auth needed for GET on public repos
-        const resp = await fetch(LB_API + '?t=' + Date.now(), {
-            headers: { Accept: 'application/vnd.github.v3+json' },
-        });
-        if (resp.ok) {
-            const apiData = await resp.json();
-            leaderboardSha = apiData.sha;
-            const data = JSON.parse(atob(apiData.content.replace(/\n/g, '')));
-            leaderboardCache = data;
-            return { data, sha: apiData.sha };
-        }
-    } catch (e) { console.log('Public API fetch failed:', e.message); }
-    // Fallback: raw URL
+// --- Leaderboard (jsonblob.com — free, no auth) ---
+async function fetchLeaderboard() {
     try {
         const resp = await fetch(LB_URL + '?t=' + Date.now());
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         leaderboardCache = data;
-        return { data, sha: null };
+        return data;
     } catch (e) {
-        return { data: leaderboardCache || [], sha: null };
+        console.log('LB fetch failed:', e.message);
+        return leaderboardCache || [];
     }
 }
 
 async function saveLeaderboardRemote(data) {
-    const token = getGitHubToken();
-    if (!token) return { ok: false, msg: '未设置Token' };
     try {
-        if (!leaderboardSha) {
-            const { sha } = await fetchLeaderboardWithSha();
-            if (!sha) return { ok: false, msg: '无法获取文件SHA' };
-        }
-        const encoded = base64Encode(JSON.stringify(data, null, 2));
-        const body = { message: 'Update leaderboard', content: encoded, sha: leaderboardSha };
-        const resp = await fetch(LB_API, {
+        const resp = await fetch(LB_URL, {
             method: 'PUT',
-            mode: 'cors',
-            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
-            body: JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
         });
-        const result = await resp.json();
         if (resp.ok) {
-            leaderboardSha = result.content?.sha;
             leaderboardCache = data;
             return { ok: true };
         }
-        leaderboardSha = null;
-        return { ok: false, msg: result.message || 'API错误' };
+        return { ok: false, msg: 'HTTP ' + resp.status };
     } catch (e) {
-        leaderboardSha = null;
         return { ok: false, msg: e.message };
     }
 }
@@ -176,37 +140,22 @@ async function saveLeaderboardRemote(data) {
 async function updateMaxFloor(floorLevel) {
     const username = getCurrentUser();
     if (!username) return { ok: false, msg: '未登录' };
-    console.log('updateMaxFloor: user=' + username + ' floor=' + floorLevel);
-    const { data: lb, sha } = await fetchLeaderboardWithSha();
-    console.log('fetchLeaderboardWithSha: entries=' + lb.length + ' sha=' + (sha ? 'ok' : 'none'));
+    const lb = await fetchLeaderboard();
     const entry = lb.find(e => e.name === username);
     if (entry && floorLevel > entry.maxFloor) {
         entry.maxFloor = floorLevel;
         entry.updatedAt = Date.now();
-        console.log('Updating existing entry to floor ' + floorLevel);
         return await saveLeaderboardRemote(lb);
     } else if (!entry) {
         lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
-        leaderboardSha = null;
-        console.log('Creating new entry');
         return await saveLeaderboardRemote(lb);
     }
     return { ok: false, msg: '未超过最高记录' };
 }
 
 async function getTopLeaderboard(n) {
-    const { data: lb } = await fetchLeaderboardWithSha();
+    const lb = await fetchLeaderboard();
     return lb.sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
-}
-
-const EMBEDDED_TOKEN = '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';
-
-function getGitHubToken() {
-    return localStorage.getItem('greedyGHToken') || EMBEDDED_TOKEN;
-}
-
-function setGitHubToken(token) {
-    localStorage.setItem('greedyGHToken', token);
 }
 
 // --- Display Name ---

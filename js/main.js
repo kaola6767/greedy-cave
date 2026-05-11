@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v1.5.0';
+const GAME_VERSION = 'v1.5.1';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
