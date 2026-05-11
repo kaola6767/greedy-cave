@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>贪婪洞窟 - Roguelike地牢探险</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="title-screen" class="screen">
+            <h1>贪婪洞窟</h1>
+            <p class="subtitle">Roguelike 地牢探险</p>
+            <div class="title-buttons">
+                <button id="btn-start">开始冒险</button>
+                <button id="btn-howto">操作说明</button>
+            </div>
+            <div id="howto-panel" class="hidden">
+                <p>🎮 方向键 / WASD 移动</p>
+                <p>📱 手机: 虚拟方向键或点击地图移动</p>
+                <p>⚔️ 靠近怪物触发战斗</p>
+                <p>📦 靠近宝箱打开获取装备</p>
+                <p>🚪 到达出口进入下一层</p>
+                <p>🧪 踩到药水恢复生命</p>
+            </div>
+        </div>
+
+        <div id="game-screen" class="screen hidden">
+            <!-- Mobile header -->
+            <div id="mobile-header">
+                <span id="mob-floor">第1层</span>
+                <div class="mob-hp-bar"><div class="mob-hp-fill" id="mob-hp-fill"></div></div>
+                <span id="mob-hp-text">100/100</span>
+                <span id="mob-potions">🧪3</span>
+            </div>
+
+            <!-- Desktop header -->
+            <div id="desktop-header">
+                <span>Lv.<span id="dh-level">1</span></span>
+                <span>HP:<span id="dh-hp">100/100</span></span>
+                <span>ATK:<span id="dh-atk">8</span></span>
+                <span>DEF:<span id="dh-def">3</span></span>
+                <span>XP:<span id="dh-xp">0/50</span></span>
+                <span>🧪<span id="dh-potions">3</span></span>
+                <span id="dh-floor">第1层</span>
+            </div>
+
+            <div id="game-main">
+                <canvas id="game-canvas"></canvas>
+                <div id="floor-indicator">第 1 层</div>
+
+                <!-- Virtual D-pad (mobile only) -->
+                <div id="dpad">
+                    <button class="dpad-btn" data-dx="0" data-dy="-1">▲</button>
+                    <button class="dpad-btn" data-dx="-1" data-dy="0">◀</button>
+                    <button class="dpad-btn" data-dx="1" data-dy="0">▶</button>
+                    <button class="dpad-btn" data-dx="0" data-dy="1">▼</button>
+                </div>
+            </div>
+
+            <!-- Desktop side panel -->
+            <div id="side-panel">
+                <div id="player-stats">
+                    <h3>玩家状态</h3>
+                    <div class="stat-row"><span>等级</span><span id="stat-level">1</span></div>
+                    <div class="stat-row"><span>生命</span><span id="stat-hp">100/100</span></div>
+                    <div class="stat-row"><span>攻击</span><span id="stat-atk">10</span></div>
+                    <div class="stat-row"><span>防御</span><span id="stat-def">5</span></div>
+                    <div class="stat-row"><span>经验</span><span id="stat-xp">0/50</span></div>
+                    <div class="stat-row"><span>药水</span><span id="stat-potions">3</span></div>
+                </div>
+                <div id="player-equipment">
+                    <h3>装备</h3>
+                    <div class="equip-slot" data-slot="weapon"><span>武器</span><span id="eq-weapon">空</span></div>
+                    <div class="equip-slot" data-slot="helmet"><span>头盔</span><span id="eq-helmet">空</span></div>
+                    <div class="equip-slot" data-slot="armor"><span>铠甲</span><span id="eq-armor">空</span></div>
+                    <div class="equip-slot" data-slot="ring"><span>戒指</span><span id="eq-ring">空</span></div>
+                </div>
+                <div id="player-inventory">
+                    <h3>背包</h3>
+                    <div id="inv-list"></div>
+                </div>
+            </div>
+
+            <!-- Desktop message log -->
+            <div id="message-log">
+                <div id="log-content"></div>
+            </div>
+
+            <!-- Mobile bottom bar -->
+            <div id="mobile-actions">
+                <button id="mob-btn-stats">📊</button>
+                <button id="mob-btn-equip">⚔️</button>
+                <button id="mob-btn-bag">🎒</button>
+                <button id="mob-btn-log">📜</button>
+            </div>
+
+            <!-- Mobile drawer (slide-up panel) -->
+            <div id="drawer-overlay" class="hidden"></div>
+            <div id="drawer" class="hidden">
+                <div id="drawer-handle"></div>
+                <div id="drawer-content"></div>
+            </div>
+        </div>
+
+        <!-- Combat Modal -->
+        <div id="combat-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="combat-title">战斗!</h2>
+                <div id="combat-monster">
+                    <div class="combat-name" id="combat-monster-name"></div>
+                    <div class="hp-bar"><div class="hp-fill" id="combat-monster-hp"></div></div>
+                    <div class="combat-stats" id="combat-monster-stats"></div>
+                </div>
+                <div id="combat-player">
+                    <div class="combat-name">你</div>
+                    <div class="hp-bar"><div class="hp-fill player-hp" id="combat-player-hp"></div></div>
+                </div>
+                <div id="combat-log"></div>
+                <div id="combat-actions">
+                    <button id="btn-attack">⚔️ 攻击</button>
+                    <button id="btn-potion">🧪 药水</button>
+                    <button id="btn-flee">🏃 逃跑</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Victory Modal -->
+        <div id="victory-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>🎉 找到了出口!</h2>
+                <p>你成功到达了第 <span id="victory-floor"></span> 层!</p>
+                <button id="btn-next-floor">进入下一层</button>
+            </div>
+        </div>
+
+        <!-- Death Modal -->
+        <div id="dead-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>💀 你死了</h2>
+                <p>你到达了第 <span id="dead-floor"></span> 层</p>
+                <p>失去了所有装备...</p>
+                <button id="btn-restart">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/equipment.js"></script>
+    <script src="js/monster.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/dungeon.js"></script>
+    <script src="js/combat.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,643 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    background: #0a0a0a;
+    color: #ccc;
+    font-family: 'Microsoft YaHei', 'SimHei', system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    touch-action: manipulation;
+}
+
+#game-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.screen {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ============ TITLE SCREEN ============ */
+#title-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 80%);
+    border: 2px solid #333;
+}
+
+#title-screen h1 {
+    font-size: 52px;
+    color: #ffd700;
+    text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00;
+    margin-bottom: 8px;
+    letter-spacing: 12px;
+    text-align: center;
+}
+
+.subtitle {
+    font-size: 16px;
+    color: #888;
+    margin-bottom: 40px;
+    letter-spacing: 4px;
+}
+
+.title-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.title-buttons button {
+    width: 200px;
+    padding: 12px 0;
+    font-size: 18px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #555;
+    background: #1a1a2e;
+    color: #ddd;
+    transition: all 0.2s;
+}
+
+.title-buttons button:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+#howto-panel {
+    margin-top: 20px;
+    padding: 16px 24px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid #444;
+    border-radius: 4px;
+    line-height: 2;
+    font-size: 14px;
+}
+
+/* ============ GAME SCREEN ============ */
+#game-screen {
+    display: flex;
+    flex-wrap: wrap;
+    height: 100%;
+}
+
+#game-main {
+    position: relative;
+    overflow: hidden;
+}
+
+#game-canvas {
+    display: block;
+    background: #111;
+}
+
+#floor-indicator {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 12px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid #555;
+    color: #ffd700;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+/* ============ DESKTOP HEADER ============ */
+#desktop-header {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 0;
+    background: #111;
+    border-bottom: 1px solid #333;
+    font-size: 13px;
+    color: #aaa;
+    width: 800px;
+}
+
+#desktop-header span {
+    color: #eee;
+    margin-left: 4px;
+}
+
+/* ============ MOBILE HEADER ============ */
+#mobile-header {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #111;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+#mobile-header .mob-hp-bar {
+    flex: 1;
+    height: 12px;
+    background: #333;
+    border: 1px solid #555;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#mobile-header .mob-hp-fill {
+    height: 100%;
+    background: #4a4;
+    transition: width 0.3s;
+    width: 100%;
+}
+
+#mob-floor { color: #ffd700; }
+#mob-hp-text { color: #eee; font-size: 12px; min-width: 60px; text-align: right; }
+#mob-potions { font-size: 13px; }
+
+/* ============ SIDE PANEL ============ */
+#side-panel {
+    width: 300px;
+    padding: 12px;
+    background: #111;
+    border: 1px solid #333;
+    overflow-y: auto;
+}
+
+#side-panel h3 {
+    color: #ffd700;
+    font-size: 14px;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #333;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    font-size: 13px;
+}
+
+.stat-row span:first-child { color: #888; }
+.stat-row span:last-child { color: #eee; }
+
+#player-stats { margin-bottom: 16px; }
+#player-equipment { margin-bottom: 16px; }
+
+.equip-slot {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    margin: 2px 0;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.equip-slot:hover { border-color: #ffd700; }
+.equip-slot span:first-child { color: #888; }
+.equip-slot span:last-child { color: #ccc; }
+
+.rarity-common { color: #aaa; }
+.rarity-rare { color: #4da6ff; }
+.rarity-epic { color: #c44dff; }
+.rarity-legendary { color: #ff8c00; }
+
+#player-inventory { margin-bottom: 16px; }
+
+#inv-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.inv-item {
+    padding: 3px 8px;
+    margin: 2px 0;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.inv-item:hover { border-color: #ffd700; }
+
+/* ============ MESSAGE LOG ============ */
+#message-log {
+    width: 800px;
+    height: 100px;
+    background: #0a0a0a;
+    border: 1px solid #333;
+    border-top: none;
+    overflow: hidden;
+}
+
+#log-content {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.6;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.log-entry {
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ VIRTUAL D-PAD ============ */
+#dpad {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 130px;
+    height: 130px;
+    z-index: 10;
+}
+
+.dpad-btn {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.5);
+    color: #ccc;
+    font-size: 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.dpad-btn:active {
+    background: rgba(255,215,0,0.3);
+    border-color: #ffd700;
+}
+
+.dpad-btn[data-dy="-1"] { top: 0; left: 45px; }
+.dpad-btn[data-dx="-1"] { top: 45px; left: 0; }
+.dpad-btn[data-dx="1"]  { top: 45px; left: 90px; }
+.dpad-btn[data-dy="1"]  { top: 90px; left: 45px; }
+
+/* ============ MOBILE ACTIONS BAR ============ */
+#mobile-actions {
+    display: none;
+    justify-content: space-around;
+    align-items: center;
+    padding: 6px 0;
+    background: #111;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+}
+
+#mobile-actions button {
+    width: 50px;
+    height: 36px;
+    font-size: 20px;
+    border: 1px solid #333;
+    background: #1a1a1a;
+    color: #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#mobile-actions button:active {
+    background: #2a2a2a;
+    border-color: #ffd700;
+}
+
+/* ============ DRAWER ============ */
+#drawer-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 50;
+}
+
+#drawer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 60%;
+    background: #1a1a2e;
+    border-top: 2px solid #444;
+    z-index: 51;
+    overflow-y: auto;
+    transform: translateY(0);
+    transition: transform 0.25s ease-out;
+    padding: 12px 16px;
+}
+
+#drawer.hidden {
+    display: block !important;
+    transform: translateY(100%);
+}
+
+#drawer-handle {
+    width: 40px;
+    height: 4px;
+    background: #555;
+    border-radius: 2px;
+    margin: 0 auto 12px;
+}
+
+#drawer .equip-slot {
+    padding: 10px 12px;
+    font-size: 15px;
+    margin: 4px 0;
+}
+
+#drawer .inv-item {
+    padding: 8px 10px;
+    font-size: 14px;
+    margin: 3px 0;
+}
+
+#drawer h3 {
+    color: #ffd700;
+    font-size: 15px;
+    margin: 8px 0 6px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+}
+
+#drawer .stat-row {
+    font-size: 14px;
+    padding: 3px 0;
+}
+
+/* ============ MODALS ============ */
+.modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.modal-content {
+    background: #1a1a2e;
+    border: 2px solid #555;
+    padding: 24px 32px;
+    min-width: 320px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    text-align: center;
+}
+
+.modal-content h2 {
+    color: #ffd700;
+    margin-bottom: 16px;
+    font-size: 22px;
+}
+
+.combat-name {
+    font-size: 16px;
+    color: #eee;
+    margin-bottom: 4px;
+}
+
+.hp-bar {
+    width: 100%;
+    height: 14px;
+    background: #333;
+    border: 1px solid #555;
+    margin: 4px 0 8px;
+}
+
+.hp-fill {
+    height: 100%;
+    background: #c44;
+    transition: width 0.3s;
+}
+
+.hp-fill.player-hp { background: #4a4; }
+
+.combat-stats {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 12px;
+}
+
+#combat-log {
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: 13px;
+    color: #aaa;
+    margin: 12px 0;
+    text-align: left;
+    line-height: 1.6;
+}
+
+#combat-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+#combat-actions button {
+    padding: 8px 18px;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #555;
+    background: #1a1a2e;
+    color: #ddd;
+    transition: all 0.2s;
+    min-width: 90px;
+}
+
+#combat-actions button:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+#combat-actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Victory / Death modals */
+#victory-modal .modal-content button,
+#dead-modal .modal-content button {
+    margin-top: 16px;
+    padding: 10px 28px;
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #555;
+    background: #1a1a2e;
+    color: #ffd700;
+    transition: all 0.2s;
+}
+
+#victory-modal .modal-content button:hover,
+#dead-modal .modal-content button:hover {
+    background: #2a2a4e;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+#dead-modal .modal-content h2 { color: #c44; }
+
+/* ============ TOASTS (mobile) ============ */
+#toast-container {
+    display: none;
+    position: absolute;
+    bottom: 60px;
+    left: 10px;
+    right: 10px;
+    z-index: 40;
+    pointer-events: none;
+}
+
+.toast {
+    padding: 6px 12px;
+    margin-top: 4px;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #ccc;
+    animation: fadeIn 0.3s;
+}
+
+/* ============ DESKTOP LAYOUT ============ */
+@media (min-width: 769px) {
+    #game-container {
+        width: 1100px;
+        height: 700px;
+    }
+
+    #game-main {
+        width: 800px;
+        height: 560px;
+    }
+
+    #game-canvas {
+        width: 800px;
+        height: 560px;
+    }
+
+    #side-panel {
+        height: 700px;
+    }
+
+    #desktop-header {
+        display: flex;
+    }
+
+    #mobile-header { display: none; }
+    #mobile-actions { display: none; }
+    #dpad { display: none; }
+    #drawer, #drawer-overlay { display: none !important; }
+    #floor-indicator { display: block; }
+    #toast-container { display: none !important; }
+}
+
+/* ============ MOBILE LAYOUT ============ */
+@media (max-width: 768px) {
+    body {
+        align-items: stretch;
+    }
+
+    #game-container {
+        width: 100vw;
+        width: 100dvw;
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    #game-main {
+        flex: 1;
+        min-height: 0;
+    }
+
+    #game-canvas {
+        width: 100%;
+        height: 100%;
+    }
+
+    #desktop-header { display: none; }
+    #mobile-header { display: flex; }
+    #mobile-actions { display: flex; }
+    #dpad { display: block; }
+    #side-panel { display: none; }
+    #message-log { display: none; }
+    #floor-indicator { display: none; }
+    #toast-container { display: block; }
+
+    #title-screen h1 {
+        font-size: 36px;
+        letter-spacing: 8px;
+    }
+
+    .subtitle {
+        font-size: 14px;
+        margin-bottom: 30px;
+    }
+
+    .title-buttons button {
+        width: 180px;
+        padding: 14px 0;
+        font-size: 18px;
+    }
+
+    #howto-panel {
+        font-size: 13px;
+        line-height: 1.8;
+        padding: 12px 18px;
+    }
+
+    .modal-content {
+        min-width: 280px;
+        padding: 20px 20px;
+    }
+
+    #combat-actions button {
+        padding: 12px 12px;
+        font-size: 16px;
+        min-width: 80px;
+    }
+}
