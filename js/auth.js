@@ -117,26 +117,22 @@ function base64Encode(str) {
     return btoa(binary);
 }
 
-// Fetch data + SHA in one API call (with raw fallback)
+// Fetch data + SHA — public API call (no auth needed for public repo)
 async function fetchLeaderboardWithSha() {
-    const token = getGitHubToken();
-    // Try API first (gives us SHA for writes)
-    if (token) {
-        try {
-            const resp = await fetch(LB_API, {
-                mode: 'cors',
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
-            });
-            if (resp.ok) {
-                const apiData = await resp.json();
-                leaderboardSha = apiData.sha;
-                const data = JSON.parse(atob(apiData.content.replace(/\n/g, '')));
-                leaderboardCache = data;
-                return { data, sha: apiData.sha };
-            }
-        } catch (e) { console.log('API get failed:', e.message); }
-    }
-    // Fallback: raw URL (read-only, no SHA)
+    try {
+        // Public API — no auth needed for GET on public repos
+        const resp = await fetch(LB_API + '?t=' + Date.now(), {
+            headers: { Accept: 'application/vnd.github.v3+json' },
+        });
+        if (resp.ok) {
+            const apiData = await resp.json();
+            leaderboardSha = apiData.sha;
+            const data = JSON.parse(atob(apiData.content.replace(/\n/g, '')));
+            leaderboardCache = data;
+            return { data, sha: apiData.sha };
+        }
+    } catch (e) { console.log('Public API fetch failed:', e.message); }
+    // Fallback: raw URL
     try {
         const resp = await fetch(LB_URL + '?t=' + Date.now());
         const data = await resp.json();
