@@ -6,10 +6,12 @@ let combat;
 let renderer;
 let floorLevel = 1;
 let isMobile = false;
-let drawerTab = null; // 'stats', 'equip', 'inventory', 'log'
+let drawerTab = null;
+let restUsed = false;
 
 // --- DOM Elements ---
 const titleScreen = document.getElementById('title-screen');
+const townScreen = document.getElementById('town-screen');
 const gameScreen = document.getElementById('game-screen');
 const combatModal = document.getElementById('combat-modal');
 const victoryModal = document.getElementById('victory-modal');
@@ -243,34 +245,94 @@ drawerOverlay.addEventListener('click', closeDrawer);
 function startNewGame() {
     const username = getCurrentUser();
     deleteSave(username);
-    gameState = STATE.DUNGEON;
     player = new Player();
     floorLevel = 1;
+    restUsed = false;
     titleScreen.classList.add('hidden');
+    showTown();
+}
+
+function continueGame() {
+    player = new Player();
+    const savedFloor = restoreProgress(player, floorLevel);
+    floorLevel = savedFloor || 1;
+    restUsed = false;
+    titleScreen.classList.add('hidden');
+    showTown();
+}
+
+function showTown() {
+    gameState = STATE.TOWN;
+    townScreen.classList.remove('hidden');
+    gameScreen.classList.add('hidden');
+    combatModal.classList.add('hidden');
+    victoryModal.classList.add('hidden');
+    deadModal.classList.add('hidden');
+    updateTownUI();
+}
+
+function updateTownUI() {
+    if (!player) return;
+    document.getElementById('town-level').textContent = player.level;
+    document.getElementById('town-hp').textContent = `${player.hp}/${player.maxHp}`;
+    document.getElementById('town-atk').textContent = player.atk;
+    document.getElementById('town-def').textContent = player.def;
+    document.getElementById('town-xp').textContent = `${player.xp}/${player.xpToNext}`;
+    document.getElementById('town-potions').textContent = player.potions;
+    document.getElementById('town-floor').textContent = `第${floorLevel}层`;
+    document.getElementById('btn-rest').disabled = (player.hp >= player.maxHp) || restUsed;
+
+    // Equipment
+    for (const slot of ['weapon', 'helmet', 'armor', 'ring']) {
+        const el = document.getElementById(`teq-${slot}`);
+        const item = player.equipment[slot];
+        if (item) {
+            el.textContent = item.fullName;
+            el.className = item.rarity.color;
+        } else {
+            el.textContent = '空';
+            el.className = '';
+        }
+    }
+
+    // Town inventory list
+    const invList = document.getElementById('town-inv-list');
+    invList.innerHTML = '';
+    if (player.inventory.length === 0) {
+        invList.innerHTML = '<div style="color:#555;font-size:12px;padding:4px;">背包为空</div>';
+    } else {
+        for (let i = 0; i < player.inventory.length; i++) {
+            const item = player.inventory[i];
+            const div = document.createElement('div');
+            div.className = 'inv-item';
+            div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.description()}</span>`;
+            div.onclick = () => { player.equip(item); updateTownUI(); };
+            div.title = '点击装备';
+            invList.appendChild(div);
+        }
+    }
+}
+
+function enterDungeon() {
+    gameState = STATE.DUNGEON;
+    townScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
+    saveProgress(player, floorLevel);
+    restUsed = false;
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             resizeCanvas();
-            addLog('你进入了地牢...', '#ffd700');
+            addLog('进入了地牢...', '#ffd700');
             generateFloor();
         });
     });
 }
 
-function continueGame() {
-    const username = getCurrentUser();
-    gameState = STATE.DUNGEON;
-    player = new Player();
-    floorLevel = restoreProgress(player, floorLevel) || 1;
-    titleScreen.classList.add('hidden');
-    gameScreen.classList.remove('hidden');
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            resizeCanvas();
-            addLog(`欢迎回来，${username}!`, '#ffd700');
-            generateFloor();
-        });
-    });
+function returnToTown() {
+    saveProgress(player, floorLevel);
+    gameState = STATE.TOWN;
+    player.hp = player.maxHp; // auto-heal when returning to town
+    showTown();
 }
 
 function generateFloor() {
@@ -421,8 +483,7 @@ function showDeath() {
     gameState = STATE.DEAD;
     document.getElementById('dead-floor').textContent = floorLevel;
     deadModal.classList.remove('hidden');
-    player.equipment = { weapon: null, helmet: null, armor: null, ring: null };
-    player.inventory = [];
+    // Equipment and level are kept; only current floor progress is lost
 }
 
 function nextFloor() {
@@ -503,6 +564,44 @@ document.getElementById('btn-logout').addEventListener('click', () => {
     showLoggedOut();
 });
 
+// Town buttons
+document.getElementById('btn-enter-dungeon').addEventListener('click', enterDungeon);
+document.getElementById('btn-rest').addEventListener('click', () => {
+    player.hp = player.maxHp;
+    restUsed = true;
+    updateTownUI();
+});
+document.getElementById('btn-supply').addEventListener('click', () => {
+    player.potions += 3;
+    updateTownUI();
+});
+document.getElementById('btn-town-equip').addEventListener('click', () => {
+    document.getElementById('town-equipment').classList.toggle('hidden');
+});
+document.getElementById('btn-town-logout').addEventListener('click', () => {
+    logout();
+    townScreen.classList.add('hidden');
+    showLoggedOut();
+});
+
+// Town equip slots
+document.querySelectorAll('#town-equipment .equip-slot').forEach(slot => {
+    slot.addEventListener('click', () => {
+        if (player && player.equipment[slot.dataset.slot]) {
+            player.unequip(slot.dataset.slot);
+            updateTownUI();
+        }
+    });
+});
+
+// Return to town (dungeon)
+document.getElementById('btn-return-town').addEventListener('click', () => {
+    if (gameState === STATE.DUNGEON) returnToTown();
+});
+document.getElementById('mob-btn-return').addEventListener('click', () => {
+    if (gameState === STATE.DUNGEON) returnToTown();
+});
+
 // Game actions
 document.getElementById('btn-start').addEventListener('click', startNewGame);
 document.getElementById('btn-continue').addEventListener('click', continueGame);
@@ -514,7 +613,14 @@ document.getElementById('btn-attack').addEventListener('click', () => combatActi
 document.getElementById('btn-potion').addEventListener('click', () => combatAction('potion'));
 document.getElementById('btn-flee').addEventListener('click', () => combatAction('flee'));
 document.getElementById('btn-next-floor').addEventListener('click', nextFloor);
-document.getElementById('btn-restart').addEventListener('click', restartGame);
+document.getElementById('btn-next-back-town').addEventListener('click', () => {
+    victoryModal.classList.add('hidden');
+    returnToTown();
+});
+document.getElementById('btn-back-town-dead').addEventListener('click', () => {
+    deadModal.classList.add('hidden');
+    returnToTown();
+});
 
 // Mobile action buttons
 document.getElementById('mob-btn-stats').addEventListener('click', () => openDrawer('stats'));

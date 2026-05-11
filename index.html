@@ -48,6 +48,39 @@
             </div>
         </div>
 
+        <!-- Town Screen -->
+        <div id="town-screen" class="screen hidden">
+            <h2>🏰 安全城镇</h2>
+            <div id="town-layout">
+                <div id="town-stats">
+                    <h3>玩家状态</h3>
+                    <div class="stat-row"><span>等级</span><span id="town-level">1</span></div>
+                    <div class="stat-row"><span>生命</span><span id="town-hp">100/100</span></div>
+                    <div class="stat-row"><span>攻击</span><span id="town-atk">8</span></div>
+                    <div class="stat-row"><span>防御</span><span id="town-def">3</span></div>
+                    <div class="stat-row"><span>经验</span><span id="town-xp">0/50</span></div>
+                    <div class="stat-row"><span>药水</span><span id="town-potions">3</span></div>
+                    <div class="stat-row"><span>进度</span><span id="town-floor">第1层</span></div>
+                </div>
+                <div id="town-actions">
+                    <button id="btn-enter-dungeon">⚔️ 进入地牢</button>
+                    <button id="btn-rest">💤 休息恢复</button>
+                    <button id="btn-supply">🧪 领取补给 (3瓶)</button>
+                    <button id="btn-town-equip">🎒 管理装备</button>
+                    <button id="btn-town-logout">🚪 登出</button>
+                </div>
+                <div id="town-equipment" class="hidden">
+                    <h3>装备 (点击卸下)</h3>
+                    <div class="equip-slot" data-slot="weapon"><span>武器</span><span id="teq-weapon">空</span></div>
+                    <div class="equip-slot" data-slot="helmet"><span>头盔</span><span id="teq-helmet">空</span></div>
+                    <div class="equip-slot" data-slot="armor"><span>铠甲</span><span id="teq-armor">空</span></div>
+                    <div class="equip-slot" data-slot="ring"><span>戒指</span><span id="teq-ring">空</span></div>
+                    <h3>背包 (点击装备)</h3>
+                    <div id="town-inv-list"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="game-screen" class="screen hidden">
             <!-- Mobile header -->
             <div id="mobile-header">
@@ -71,6 +104,7 @@
             <div id="game-main">
                 <canvas id="game-canvas"></canvas>
                 <div id="floor-indicator">第 1 层</div>
+                <button id="btn-return-town" title="返回主城">🏠</button>
             </div>
 
             <!-- Virtual D-pad (mobile only) -->
@@ -112,6 +146,7 @@
 
             <!-- Mobile bottom bar -->
             <div id="mobile-actions">
+                <button id="mob-btn-return">🏠</button>
                 <button id="mob-btn-stats">📊</button>
                 <button id="mob-btn-equip">⚔️</button>
                 <button id="mob-btn-bag">🎒</button>
@@ -154,16 +189,17 @@
                 <h2>🎉 找到了出口!</h2>
                 <p>你成功到达了第 <span id="victory-floor"></span> 层!</p>
                 <button id="btn-next-floor">进入下一层</button>
+                <button id="btn-next-back-town" class="btn-secondary">返回主城</button>
             </div>
         </div>
 
         <!-- Death Modal -->
         <div id="dead-modal" class="modal hidden">
             <div class="modal-content">
-                <h2>💀 你死了</h2>
+                <h2>💀 你倒下了</h2>
                 <p>你到达了第 <span id="dead-floor"></span> 层</p>
-                <p>失去了所有装备...</p>
-                <button id="btn-restart">重新开始</button>
+                <p>装备和等级得以保留，但失去了当前层的进度</p>
+                <button id="btn-back-town-dead">返回主城</button>
             </div>
         </div>
     </div>
