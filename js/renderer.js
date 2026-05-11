@@ -205,12 +205,12 @@ class Renderer {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Label (first char of name)
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 9px sans-serif';
+        // Emoji icon
+        const emoji = data ? data.emoji : '👾';
+        ctx.font = `${CELL_SIZE}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(name[0], cx, my);
+        ctx.fillText(emoji, cx, my);
 
         // Elite: golden ring + crown
         if (isElite) {
