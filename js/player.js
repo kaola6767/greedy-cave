@@ -95,7 +95,11 @@ class Player {
     equip(item) {
         const idx = this.inventory.indexOf(item);
         if (idx !== -1) this.inventory.splice(idx, 1);
-        const slot = item.type.slot;
+        let slot = item.type.slot;
+        // Auto-assign ring to ring2 if ring1 is occupied and ring2 is free
+        if (slot === 'ring1' && this.equipment.ring1 && !this.equipment.ring2) {
+            slot = 'ring2';
+        }
         const old = this.equipment[slot];
         if (old) this.inventory.push(old);
         this.equipment[slot] = item;

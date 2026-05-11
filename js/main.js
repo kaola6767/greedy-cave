@@ -80,55 +80,53 @@ const drawerLogBuffer = [];
 
 // --- UI Update ---
 function updateUI() {
-    // Desktop side panel
-    if (!isMobile) {
-        document.getElementById('stat-level').textContent = player.level;
-        document.getElementById('stat-hp').textContent = `${player.hp}/${player.maxHp}`;
-        document.getElementById('stat-atk').textContent = player.atk;
-        document.getElementById('stat-def').textContent = player.def;
-        document.getElementById('stat-xp').textContent = `${player.xp}/${player.xpToNext}`;
-        document.getElementById('stat-potions').textContent = player.potions;
-        document.getElementById('stat-gold').textContent = player.gold || 0;
-        floorIndicator.textContent = `第 ${floorLevel} 层`;
+    // Always update panel content (CSS handles mobile/desktop visibility)
+    document.getElementById('stat-level').textContent = player.level;
+    document.getElementById('stat-hp').textContent = `${player.hp}/${player.maxHp}`;
+    document.getElementById('stat-atk').textContent = player.atk;
+    document.getElementById('stat-def').textContent = player.def;
+    document.getElementById('stat-xp').textContent = `${player.xp}/${player.xpToNext}`;
+    document.getElementById('stat-potions').textContent = player.potions;
+    document.getElementById('stat-gold').textContent = player.gold || 0;
+    floorIndicator.textContent = `第 ${floorLevel} 层`;
 
-        for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
-            const el = document.getElementById(`eq-${slot}`);
-            if (!el) continue;
-            const item = player.equipment[slot];
-            if (item) {
-                el.textContent = item.fullName;
-                el.className = item.rarity.color;
-            } else {
-                el.textContent = '空';
-                el.className = '';
-            }
-        }
-
-        const invList = document.getElementById('inv-list');
-        invList.innerHTML = '';
-        if (player.inventory.length === 0) {
-            invList.innerHTML = '<div style="color:#555;font-size:12px;padding:4px;">背包为空</div>';
+    for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
+        const el = document.getElementById(`eq-${slot}`);
+        if (!el) continue;
+        const item = player.equipment[slot];
+        if (item) {
+            el.textContent = item.fullName;
+            el.className = item.rarity.color;
         } else {
-            for (let i = 0; i < player.inventory.length; i++) {
-                const item = player.inventory[i];
-                const div = document.createElement('div');
-                div.className = 'inv-item';
-                div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.desc()}</span>`;
-                div.onclick = () => { player.equip(item); updateUI(); };
-                div.title = '点击装备';
-                invList.appendChild(div);
-            }
+            el.textContent = '空';
+            el.className = '';
         }
-
-        // Desktop header
-        document.getElementById('dh-level').textContent = player.level;
-        document.getElementById('dh-hp').textContent = `${player.hp}/${player.maxHp}`;
-        document.getElementById('dh-atk').textContent = player.atk;
-        document.getElementById('dh-def').textContent = player.def;
-        document.getElementById('dh-xp').textContent = `${player.xp}/${player.xpToNext}`;
-        document.getElementById('dh-potions').textContent = player.potions;
-        document.getElementById('dh-floor').textContent = `第${floorLevel}层`;
     }
+
+    const invList = document.getElementById('inv-list');
+    invList.innerHTML = '';
+    if (player.inventory.length === 0) {
+        invList.innerHTML = '<div style="color:#555;font-size:12px;padding:4px;">背包为空</div>';
+    } else {
+        for (let i = 0; i < player.inventory.length; i++) {
+            const item = player.inventory[i];
+            const div = document.createElement('div');
+            div.className = 'inv-item';
+            div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.desc()}</span>`;
+            div.onclick = () => { player.equip(item); updateUI(); };
+            div.title = '点击装备';
+            invList.appendChild(div);
+        }
+    }
+
+    // Desktop header
+    document.getElementById('dh-level').textContent = player.level;
+    document.getElementById('dh-hp').textContent = `${player.hp}/${player.maxHp}`;
+    document.getElementById('dh-atk').textContent = player.atk;
+    document.getElementById('dh-def').textContent = player.def;
+    document.getElementById('dh-xp').textContent = `${player.xp}/${player.xpToNext}`;
+    document.getElementById('dh-potions').textContent = player.potions;
+    document.getElementById('dh-floor').textContent = `第${floorLevel}层`;
 
     // Mobile header
     document.getElementById('mob-floor').textContent = `第${floorLevel}层`;
