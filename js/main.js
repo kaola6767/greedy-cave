@@ -363,8 +363,9 @@ function movePlayer(dx, dy) {
     player.y = ny;
 
     if (cell.entity === ENTITY.MONSTER) {
+        const monsterData = cell.monsterData;
         dungeon.removeEntity(nx, ny);
-        startCombat();
+        startCombat(monsterData);
     } else if (cell.entity === ENTITY.CHEST) {
         dungeon.removeEntity(nx, ny);
         openChest();
@@ -382,9 +383,9 @@ function movePlayer(dx, dy) {
     updateUI();
 }
 
-function startCombat() {
+function startCombat(monsterData) {
     gameState = STATE.COMBAT;
-    const monster = generateMonster(floorLevel);
+    const monster = monsterData || generateMonster(floorLevel);
     combat = new Combat(player, monster, floorLevel);
 
     document.getElementById('combat-monster-name').innerHTML = `<span class="combat-emoji">${monster.emoji}</span> ${monster.name} <span class="combat-lv">Lv.${floorLevel}</span>`;

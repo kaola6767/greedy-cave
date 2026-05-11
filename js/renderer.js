@@ -117,7 +117,7 @@ class Renderer {
             for (let x = startCol; x < endCol; x++) {
                 const cell = d.getTile(x, y);
                 if (cell.visible && cell.explored && cell.entity !== ENTITY.NONE) {
-                    this.drawEntity(x * CELL_SIZE, y * CELL_SIZE, cell.entity);
+                    this.drawEntity(x * CELL_SIZE, y * CELL_SIZE, cell.entity, cell.monsterData);
                 }
             }
         }
@@ -133,7 +133,7 @@ class Renderer {
         this.drawFog(cw, ch);
     }
 
-    drawEntity(px, py, entity) {
+    drawEntity(px, py, entity, monsterData) {
         const ctx = this.ctx;
         const cx = px + CELL_SIZE / 2;
         const cy = py + CELL_SIZE / 2;
@@ -164,60 +164,48 @@ class Renderer {
             ctx.fillRect(px + 6, py + 2, 6, 6);
             ctx.fillRect(px + 7, py + 3, 4, 4);
         } else if (entity === ENTITY.MONSTER) {
-            this.drawMonster(cx, cy);
+            this.drawMonster(cx, cy, monsterData);
         }
     }
 
-    drawMonster(cx, cy) {
+    drawMonster(cx, cy, data) {
         const ctx = this.ctx;
         const bob = Math.sin(this.time * 3 + cx) * 1.5;
         const my = cy + bob;
-        const s = 0.85;
+        const isElite = data && data.isElite;
+        const isBoss = data && data.isBoss;
 
         // Dark aura
-        const aura = ctx.createRadialGradient(cx, my, 2, cx, my, 11);
-        aura.addColorStop(0, 'rgba(180,20,20,0.35)');
-        aura.addColorStop(0.6, 'rgba(80,10,10,0.15)');
+        const auraColor = isBoss ? 'rgba(255,0,0,0.45)' : isElite ? 'rgba(255,140,0,0.35)' : 'rgba(180,20,20,0.25)';
+        const aura = ctx.createRadialGradient(cx, my, 2, cx, my, isBoss ? 14 : 11);
+        aura.addColorStop(0, auraColor);
+        aura.addColorStop(0.6, 'rgba(20,5,5,0.1)');
         aura.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = aura;
-        ctx.beginPath(); ctx.arc(cx, my, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, my, isBoss ? 14 : 11, 0, Math.PI * 2); ctx.fill();
 
         // Shadow under
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.ellipse(cx, my + 8, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx, my + 7, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
 
-        // Body (dark silhouette)
-        ctx.fillStyle = '#1a0a0a';
-        ctx.beginPath();
-        ctx.moveTo(cx - 5 * s, my + 4);
-        ctx.lineTo(cx, my - 5);
-        ctx.lineTo(cx + 5 * s, my + 4);
-        ctx.lineTo(cx + 6 * s, my + 7);
-        ctx.lineTo(cx - 6 * s, my + 7);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#3a1010';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        // Emoji for individual look
+        const emoji = data ? data.emoji : '👾';
+        ctx.font = `${CELL_SIZE - 2}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, cx, my - 1 + Math.sin(this.time * 2 + cy) * 0.3);
 
-        // Claws / teeth
-        ctx.fillStyle = '#ddd';
-        ctx.fillRect(cx - 1, my + 5, 1, 3);
-        ctx.fillRect(cx + 0, my + 5, 1, 3);
+        // Crown for elite
+        if (isElite) {
+            ctx.font = '9px serif';
+            ctx.fillText('👑', cx, my - 8);
+        }
 
-        // Eyes (glowing red)
-        const eyeGlow = ctx.createRadialGradient(cx - 2, my - 1, 0.5, cx - 2, my - 1, 3);
-        eyeGlow.addColorStop(0, '#ff0000');
-        eyeGlow.addColorStop(0.4, '#cc0000');
-        eyeGlow.addColorStop(1, 'rgba(200,0,0,0)');
-        ctx.fillStyle = eyeGlow;
-        ctx.beginPath(); ctx.arc(cx - 2, my - 1, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(cx + 2, my - 1, 3, 0, Math.PI * 2); ctx.fill();
-
-        // Eye pupils
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(cx - 2, my - 1, 1.2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(cx + 2, my - 1, 1.2, 0, Math.PI * 2); ctx.fill();
+        // Boss special
+        if (isBoss) {
+            ctx.font = '10px serif';
+            ctx.fillText('💀', cx, my - 9);
+        }
     }
 
     drawPlayerCharacter(px, py) {

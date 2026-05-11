@@ -171,7 +171,7 @@ class Dungeon {
         const placed = new Set();
         const placeInRoom = (room) => `${room.x},${room.y}`;
 
-        const placeRandom = (type, count) => {
+        const placeRandom = (type, count, genData) => {
             for (let i = 0; i < count; i++) {
                 const room = pick(midRooms);
                 if (!room) continue;
@@ -181,14 +181,15 @@ class Dungeon {
                 const ey = room.y + rand(1, room.h - 2);
                 if (this.map[ey][ex].entity !== ENTITY.NONE) continue;
                 this.map[ey][ex].entity = type;
+                if (genData) this.map[ey][ex].monsterData = genData();
                 if (type === ENTITY.CHEST || type === ENTITY.EXIT) placed.add(key);
             }
         };
 
-        placeRandom(ENTITY.MONSTER, Math.min(monsterCount, midRooms.length * 2));
+        placeRandom(ENTITY.MONSTER, Math.min(monsterCount, midRooms.length * 2), () => generateMonster(this.floorLevel));
         placeRandom(ENTITY.CHEST, Math.min(chestCount, midRooms.length));
         placeRandom(ENTITY.POTION, potionCount);
-        placeRandom(ENTITY.MONSTER, 2); // extra monsters in corridors
+        placeRandom(ENTITY.MONSTER, 2, () => generateMonster(this.floorLevel));
     }
 
     getTile(x, y) {
