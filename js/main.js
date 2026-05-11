@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v1.5.2';
+const GAME_VERSION = 'v1.5.3';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -681,6 +681,13 @@ document.getElementById('btn-town-codex').addEventListener('click', () => {
     const panel = document.getElementById('town-codex');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) renderCodex();
+});
+document.getElementById('btn-set-token')?.addEventListener('click', () => {
+    const t = prompt('输入 GitHub Token (需要有 repo 权限):', getGitHubToken());
+    if (t && t.trim()) {
+        setGitHubToken(t.trim());
+        addLog('Token 已保存!', '#44ff44');
+    }
 });
 document.getElementById('btn-change-name').addEventListener('click', () => {
     const username = getCurrentUser();
