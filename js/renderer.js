@@ -60,68 +60,64 @@ class Renderer {
         const endRow = Math.min(d.rows, startRow + viewRows);
 
         // --- DRAW MAP ---
-        // Pass 1: Draw floor/corridor tiles (only visible cells)
         for (let y = startRow; y < endRow; y++) {
             for (let x = startCol; x < endCol; x++) {
                 const cell = d.getTile(x, y);
                 const px = x * CELL_SIZE;
                 const py = y * CELL_SIZE;
 
-                if (!cell.visible) continue;
-
-                if (cell.tile === TILE.FLOOR || cell.tile === TILE.CORRIDOR) {
-                    const isCorridor = cell.tile === TILE.CORRIDOR;
-                    ctx.fillStyle = isCorridor ? 'rgba(50,38,28,0.55)' : 'rgba(30,30,46,0.5)';
+                if (!cell.explored) {
+                    ctx.fillStyle = '#000';
                     ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-
-                    // Subtle grid
-                    ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-                    ctx.lineWidth = 0.5;
-                    ctx.strokeRect(px + 0.5, py + 0.5, CELL_SIZE - 1, CELL_SIZE - 1);
+                    continue;
                 }
 
-                // Entities
-                if (cell.entity !== ENTITY.NONE) {
-                    this.drawEntity(px, py, cell.entity);
+                // Tile color
+                if (cell.tile === TILE.WALL) {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                } else {
+                    // Walkable: semi-transparent warm dark tone
+                    const isCorridor = cell.tile === TILE.CORRIDOR;
+                    ctx.fillStyle = isCorridor ? 'rgba(40,32,24,0.55)' : 'rgba(25,25,35,0.45)';
+                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
                 }
             }
         }
 
-        // Pass 2: Draw yellow wall boundaries
-        ctx.strokeStyle = '#b8960c';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        const dirs = [[0,-1],[1,0],[0,1],[-1,0]]; // up, right, down, left
-
+        // --- YELLOW WALL BOUNDARIES ---
+        ctx.strokeStyle = '#c8a020';
+        ctx.lineWidth = 1.5;
         for (let y = startRow; y < endRow; y++) {
             for (let x = startCol; x < endCol; x++) {
                 const cell = d.getTile(x, y);
-                if (!cell.visible) continue;
-                if (cell.tile !== TILE.FLOOR && cell.tile !== TILE.CORRIDOR) continue;
-
+                if (!cell.explored || cell.tile !== TILE.WALL) continue;
                 const px = x * CELL_SIZE;
                 const py = y * CELL_SIZE;
-
-                for (const [dx, dy] of dirs) {
-                    const nx = x + dx, ny = y + dy;
-                    const neighbor = d.getTile(nx, ny);
-                    if (neighbor.tile === TILE.WALL) {
+                const neighbors = [
+                    [0, -1, px, py, px + CELL_SIZE, py],          // top
+                    [0, 1, px, py + CELL_SIZE, px + CELL_SIZE, py + CELL_SIZE], // bottom
+                    [-1, 0, px, py, px, py + CELL_SIZE],           // left
+                    [1, 0, px + CELL_SIZE, py, px + CELL_SIZE, py + CELL_SIZE], // right
+                ];
+                for (const [dx, dy, x1, y1, x2, y2] of neighbors) {
+                    const n = d.getTile(x + dx, y + dy);
+                    if (n.explored && n.tile !== TILE.WALL) {
                         ctx.beginPath();
-                        if (dy === -1) { // wall above
-                            ctx.moveTo(px, py);
-                            ctx.lineTo(px + CELL_SIZE, py);
-                        } else if (dy === 1) { // wall below
-                            ctx.moveTo(px, py + CELL_SIZE);
-                            ctx.lineTo(px + CELL_SIZE, py + CELL_SIZE);
-                        } else if (dx === -1) { // wall left
-                            ctx.moveTo(px, py);
-                            ctx.lineTo(px, py + CELL_SIZE);
-                        } else if (dx === 1) { // wall right
-                            ctx.moveTo(px + CELL_SIZE, py);
-                            ctx.lineTo(px + CELL_SIZE, py + CELL_SIZE);
-                        }
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
                         ctx.stroke();
                     }
+                }
+            }
+        }
+
+        // --- DRAW ENTITIES (visible cells only) ---
+        for (let y = startRow; y < endRow; y++) {
+            for (let x = startCol; x < endCol; x++) {
+                const cell = d.getTile(x, y);
+                if (cell.visible && cell.explored && cell.entity !== ENTITY.NONE) {
+                    this.drawEntity(x * CELL_SIZE, y * CELL_SIZE, cell.entity);
                 }
             }
         }
