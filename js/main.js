@@ -445,9 +445,9 @@ document.querySelectorAll('.dpad-btn').forEach(btn => {
     });
 });
 
-// Tap canvas to move
+// Tap / click canvas to move (works on both mobile and desktop)
 canvas.addEventListener('pointerdown', (e) => {
-    if (gameState !== STATE.DUNGEON || !isMobile) return;
+    if (gameState !== STATE.DUNGEON) return;
     if (!renderer) return;
     const rect = canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
