@@ -586,7 +586,10 @@ function nextFloor() {
     floorLevel++;
     gameState = STATE.DUNGEON;
     saveProgress(player, floorLevel);
-    updateMaxFloor(floorLevel);
+    updateMaxFloor(floorLevel).then(result => {
+        if (result && result.ok) addLog('🏆 排行榜已更新!', '#ffd700');
+        else if (result && result.msg === '未设置Token') addLog('⚠ 未设置Token, 无法上传排行榜', '#ffaa00');
+    });
     generateFloor();
 }
 

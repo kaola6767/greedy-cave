@@ -109,13 +109,25 @@ function restoreProgress(player, floorLevel) {
 }
 
 // --- Leaderboard (GitHub API) ---
+function base64Encode(str) {
+    // Unicode-safe base64
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
+
 async function fetchLeaderboard() {
     try {
         const resp = await fetch(LB_URL + '?t=' + Date.now());
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         leaderboardCache = data;
         return data;
-    } catch { return leaderboardCache || []; }
+    } catch (e) {
+        console.log('Leaderboard fetch failed:', e.message);
+        return leaderboardCache || [];
+    }
 }
 
 async function getLeaderboardSha() {
@@ -126,19 +138,27 @@ async function getLeaderboardSha() {
             headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
         });
         const data = await resp.json();
-        leaderboardSha = data.sha;
-        return data.sha;
-    } catch { return null; }
+        if (data.sha) {
+            leaderboardSha = data.sha;
+            return data.sha;
+        }
+        console.log('getSha response:', data);
+        return null;
+    } catch (e) {
+        console.log('getSha error:', e.message);
+        return null;
+    }
 }
 
 async function saveLeaderboardRemote(data) {
     const token = getGitHubToken();
-    if (!token) return false;
+    if (!token) { console.log('No GitHub token set'); return { ok: false, msg: '未设置Token' }; }
     try {
         if (!leaderboardSha) await getLeaderboardSha();
+        const encoded = base64Encode(JSON.stringify(data, null, 2));
         const body = {
             message: 'Update leaderboard',
-            content: btoa(unescape(encodeURIComponent(JSON.stringify(data)))),
+            content: encoded,
         };
         if (leaderboardSha) body.sha = leaderboardSha;
         const resp = await fetch(LB_API, {
@@ -147,26 +167,37 @@ async function saveLeaderboardRemote(data) {
             body: JSON.stringify(body),
         });
         const result = await resp.json();
-        if (result.content) leaderboardSha = result.content.sha;
-        leaderboardCache = data;
-        return true;
-    } catch { return false; }
+        if (resp.ok) {
+            if (result.content && result.content.sha) leaderboardSha = result.content.sha;
+            leaderboardCache = data;
+            console.log('Leaderboard saved successfully');
+            return { ok: true };
+        }
+        console.log('Save failed:', result);
+        leaderboardSha = null; // reset sha on failure
+        return { ok: false, msg: result.message || 'API错误' };
+    } catch (e) {
+        console.log('Save error:', e.message);
+        leaderboardSha = null;
+        return { ok: false, msg: e.message };
+    }
 }
 
 async function updateMaxFloor(floorLevel) {
     const username = getCurrentUser();
-    if (!username) return;
+    if (!username) return { ok: false, msg: '未登录' };
     const lb = await fetchLeaderboard();
     const entry = lb.find(e => e.name === username);
     if (entry && floorLevel > entry.maxFloor) {
         entry.maxFloor = floorLevel;
         entry.updatedAt = Date.now();
-        await saveLeaderboardRemote(lb);
+        return await saveLeaderboardRemote(lb);
     } else if (!entry) {
         lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
         leaderboardSha = null;
-        await saveLeaderboardRemote(lb);
+        return await saveLeaderboardRemote(lb);
     }
+    return { ok: false, msg: '未超过最高记录' };
 }
 
 async function getTopLeaderboard(n) {
