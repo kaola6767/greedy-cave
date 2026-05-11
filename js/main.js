@@ -583,9 +583,13 @@ function nextFloor() {
     floorLevel++;
     gameState = STATE.DUNGEON;
     saveProgress(player, floorLevel);
+    addLog('正准备更新排行榜...', '#888');
     updateMaxFloor(floorLevel).then(result => {
         if (result && result.ok) addLog('🏆 排行榜已更新!', '#ffd700');
         else if (result && result.msg) addLog('⚠ ' + result.msg, '#ffaa00');
+        else addLog('⚠ 排行榜更新失败(未知原因)', '#ffaa00');
+    }).catch(e => {
+        addLog('⚠ 排行榜异常: ' + e.message, '#ff4444');
     });
     generateFloor();
 }

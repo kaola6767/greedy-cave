@@ -180,15 +180,19 @@ async function saveLeaderboardRemote(data) {
 async function updateMaxFloor(floorLevel) {
     const username = getCurrentUser();
     if (!username) return { ok: false, msg: '未登录' };
-    const { data: lb } = await fetchLeaderboardWithSha();
+    console.log('updateMaxFloor: user=' + username + ' floor=' + floorLevel);
+    const { data: lb, sha } = await fetchLeaderboardWithSha();
+    console.log('fetchLeaderboardWithSha: entries=' + lb.length + ' sha=' + (sha ? 'ok' : 'none'));
     const entry = lb.find(e => e.name === username);
     if (entry && floorLevel > entry.maxFloor) {
         entry.maxFloor = floorLevel;
         entry.updatedAt = Date.now();
+        console.log('Updating existing entry to floor ' + floorLevel);
         return await saveLeaderboardRemote(lb);
     } else if (!entry) {
         lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
         leaderboardSha = null;
+        console.log('Creating new entry');
         return await saveLeaderboardRemote(lb);
     }
     return { ok: false, msg: '未超过最高记录' };
