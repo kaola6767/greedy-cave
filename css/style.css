@@ -97,6 +97,111 @@ body {
     font-size: 14px;
 }
 
+/* ============ AUTH FORMS ============ */
+#auth-section {
+    width: 280px;
+    margin-bottom: 12px;
+}
+
+#auth-tabs {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 6px 0;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #888;
+    transition: all 0.2s;
+}
+
+.auth-tab.active {
+    color: #ffd700;
+    border-color: #ffd700;
+    background: #222;
+}
+
+#auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#auth-form input {
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 1px solid #444;
+    background: #111;
+    color: #eee;
+    outline: none;
+    border-radius: 3px;
+}
+
+#auth-form input:focus {
+    border-color: #ffd700;
+}
+
+#auth-form input::placeholder {
+    color: #555;
+}
+
+#auth-error {
+    font-size: 12px;
+    color: #ff4444;
+    min-height: 18px;
+    text-align: center;
+}
+
+#btn-auth-submit {
+    padding: 8px 0;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #555;
+    background: #1a1a2e;
+    color: #ddd;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+#btn-auth-submit:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+#logged-section {
+    text-align: center;
+}
+
+#welcome-msg {
+    color: #ffd700;
+    font-size: 15px;
+    margin-bottom: 12px;
+}
+
+#btn-howto {
+    margin-top: 8px;
+    padding: 6px 20px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #444;
+    background: transparent;
+    color: #666;
+    transition: all 0.2s;
+}
+
+#btn-howto:hover {
+    color: #888;
+    border-color: #555;
+}
+
 /* ============ GAME SCREEN ============ */
 #game-screen {
     display: flex;

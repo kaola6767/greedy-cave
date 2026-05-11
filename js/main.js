@@ -240,7 +240,9 @@ function renderDrawerContent() {
 drawerOverlay.addEventListener('click', closeDrawer);
 
 // --- Game Flow ---
-function startGame() {
+function startNewGame() {
+    const username = getCurrentUser();
+    deleteSave(username);
     gameState = STATE.DUNGEON;
     player = new Player();
     floorLevel = 1;
@@ -250,6 +252,22 @@ function startGame() {
         requestAnimationFrame(() => {
             resizeCanvas();
             addLog('你进入了地牢...', '#ffd700');
+            generateFloor();
+        });
+    });
+}
+
+function continueGame() {
+    const username = getCurrentUser();
+    gameState = STATE.DUNGEON;
+    player = new Player();
+    floorLevel = restoreProgress(player, floorLevel) || 1;
+    titleScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            resizeCanvas();
+            addLog(`欢迎回来，${username}!`, '#ffd700');
             generateFloor();
         });
     });
@@ -411,6 +429,7 @@ function nextFloor() {
     victoryModal.classList.add('hidden');
     floorLevel++;
     gameState = STATE.DUNGEON;
+    saveProgress(player, floorLevel);
     generateFloor();
 }
 
@@ -424,7 +443,70 @@ function restartGame() {
 }
 
 // --- Event Listeners ---
-document.getElementById('btn-start').addEventListener('click', startGame);
+
+// Auth tabs
+let authMode = 'login';
+document.getElementById('tab-login').addEventListener('click', () => {
+    authMode = 'login';
+    document.getElementById('tab-login').classList.add('active');
+    document.getElementById('tab-register').classList.remove('active');
+    document.getElementById('auth-confirm').classList.add('hidden');
+    document.getElementById('btn-auth-submit').textContent = '登录';
+    document.getElementById('auth-error').textContent = '';
+});
+document.getElementById('tab-register').addEventListener('click', () => {
+    authMode = 'register';
+    document.getElementById('tab-register').classList.add('active');
+    document.getElementById('tab-login').classList.remove('active');
+    document.getElementById('auth-confirm').classList.remove('hidden');
+    document.getElementById('btn-auth-submit').textContent = '注册';
+    document.getElementById('auth-error').textContent = '';
+});
+
+// Auth submit (login or register)
+document.getElementById('btn-auth-submit').addEventListener('click', () => {
+    const username = document.getElementById('auth-username').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errorEl = document.getElementById('auth-error');
+
+    let result;
+    if (authMode === 'register') {
+        const confirm = document.getElementById('auth-confirm').value;
+        result = register(username, password, confirm);
+        if (result.ok) {
+            authMode = 'login';
+            document.getElementById('tab-login').click();
+        }
+    } else {
+        result = login(username, password);
+    }
+
+    errorEl.textContent = result.msg;
+    errorEl.style.color = result.ok ? '#44ff44' : '#ff4444';
+
+    if (result.ok && authMode === 'login') {
+        showLoggedIn(result.username);
+    }
+});
+
+// Enter key on password fields
+document.getElementById('auth-password').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-auth-submit').click();
+});
+document.getElementById('auth-confirm').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-auth-submit').click();
+});
+
+// Logout
+document.getElementById('btn-logout').addEventListener('click', () => {
+    logout();
+    showLoggedOut();
+});
+
+// Game actions
+document.getElementById('btn-start').addEventListener('click', startNewGame);
+document.getElementById('btn-continue').addEventListener('click', continueGame);
+
 document.getElementById('btn-howto').addEventListener('click', () => {
     document.getElementById('howto-panel').classList.toggle('hidden');
 });
@@ -512,5 +594,30 @@ window.addEventListener('resize', () => {
 // Prevent double-tap zoom on D-pad
 dpad.addEventListener('touchstart', (e) => e.preventDefault());
 
-// Init
+// --- Auth UI ---
+function showLoggedIn(username) {
+    document.getElementById('auth-section').classList.add('hidden');
+    document.getElementById('logged-section').classList.remove('hidden');
+    document.getElementById('welcome-msg').textContent = `欢迎，${username}!`;
+    document.getElementById('btn-continue').classList.toggle('hidden', !hasSave(username));
+}
+
+function showLoggedOut() {
+    document.getElementById('auth-section').classList.remove('hidden');
+    document.getElementById('logged-section').classList.add('hidden');
+    document.getElementById('auth-username').value = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-confirm').value = '';
+    document.getElementById('auth-error').textContent = '';
+    gameState = STATE.TITLE;
+}
+
+// --- Init ---
 detectMobile();
+
+// Auto-login if session exists
+const savedUser = getCurrentUser();
+if (savedUser) {
+    document.getElementById('auth-username').value = savedUser;
+    showLoggedIn(savedUser);
+}

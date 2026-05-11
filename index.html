@@ -11,10 +11,33 @@
         <div id="title-screen" class="screen">
             <h1>贪婪洞窟</h1>
             <p class="subtitle">Roguelike 地牢探险</p>
-            <div class="title-buttons">
-                <button id="btn-start">开始冒险</button>
-                <button id="btn-howto">操作说明</button>
+
+            <!-- Logged-out: Auth forms -->
+            <div id="auth-section">
+                <div id="auth-tabs">
+                    <button id="tab-login" class="auth-tab active">登录</button>
+                    <button id="tab-register" class="auth-tab">注册</button>
+                </div>
+                <div id="auth-form">
+                    <input type="text" id="auth-username" placeholder="用户名" maxlength="20" autocomplete="off">
+                    <input type="password" id="auth-password" placeholder="密码" maxlength="30">
+                    <input type="password" id="auth-confirm" class="hidden" placeholder="确认密码" maxlength="30">
+                    <div id="auth-error"></div>
+                    <button id="btn-auth-submit">登录</button>
+                </div>
             </div>
+
+            <!-- Logged-in: Game actions -->
+            <div id="logged-section" class="hidden">
+                <p id="welcome-msg"></p>
+                <div class="title-buttons">
+                    <button id="btn-start">开始新冒险</button>
+                    <button id="btn-continue" class="hidden">继续冒险</button>
+                    <button id="btn-logout">登出</button>
+                </div>
+            </div>
+
+            <button id="btn-howto">操作说明</button>
             <div id="howto-panel" class="hidden">
                 <p>🎮 方向键 / WASD 移动</p>
                 <p>📱 手机: 虚拟方向键或点击地图移动</p>
@@ -152,6 +175,7 @@
     <script src="js/dungeon.js"></script>
     <script src="js/combat.js"></script>
     <script src="js/renderer.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
