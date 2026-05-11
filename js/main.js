@@ -8,6 +8,7 @@ let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
 let restUsed = false;
+let lastMoveTime = 0;
 
 // --- DOM Elements ---
 const titleScreen = document.getElementById('title-screen');
@@ -353,6 +354,9 @@ function generateFloor() {
 
 function movePlayer(dx, dy) {
     if (gameState !== STATE.DUNGEON) return;
+    const now = performance.now();
+    if (now - lastMoveTime < 200) return;
+    lastMoveTime = now;
     const nx = player.x + dx;
     const ny = player.y + dy;
 
