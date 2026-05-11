@@ -10,6 +10,8 @@ let drawerTab = null;
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
+let heldDir = null;
+let moveInterval = null;
 
 // --- DOM Elements ---
 const titleScreen = document.getElementById('title-screen');
@@ -353,10 +355,29 @@ function generateFloor() {
     }
 }
 
+function startHeldMove(dx, dy) {
+    if (gameState !== STATE.DUNGEON) return;
+    heldDir = { dx, dy };
+    if (moveInterval) clearInterval(moveInterval);
+    moveInterval = setInterval(() => tryMove(dx, dy), 150);
+    tryMove(dx, dy); // immediate first move
+}
+
+function stopHeldMove() {
+    heldDir = null;
+    if (moveInterval) { clearInterval(moveInterval); moveInterval = null; }
+}
+
+function tryMove(dx, dy) {
+    if (gameState !== STATE.DUNGEON) { stopHeldMove(); return; }
+    if (!heldDir) return;
+    movePlayer(dx, dy);
+}
+
 function movePlayer(dx, dy) {
     if (gameState !== STATE.DUNGEON) return;
     const now = performance.now();
-    if (now - lastMoveTime < 150) return;
+    if (now - lastMoveTime < 120) return;
     lastMoveTime = now;
     const nx = player.x + dx;
     const ny = player.y + dy;
@@ -656,13 +677,20 @@ document.getElementById('mob-btn-equip').addEventListener('click', () => openDra
 document.getElementById('mob-btn-bag').addEventListener('click', () => openDrawer('inventory'));
 document.getElementById('mob-btn-log').addEventListener('click', () => openDrawer('log'));
 
-// D-pad
+// D-pad — hold to move continuously
 document.querySelectorAll('.dpad-btn').forEach(btn => {
     btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         const dx = parseInt(btn.dataset.dx);
         const dy = parseInt(btn.dataset.dy);
-        movePlayer(dx, dy);
+        startHeldMove(dx, dy);
+    });
+    btn.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        stopHeldMove();
+    });
+    btn.addEventListener('pointerleave', (e) => {
+        stopHeldMove();
     });
 });
 
@@ -691,14 +719,15 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
-// Keyboard
+// Keyboard — keydown starts held movement
 document.addEventListener('keydown', (e) => {
+    if (e.repeat) return; // ignore OS key repeat
     if (gameState === STATE.DUNGEON) {
         switch (e.key) {
-            case 'ArrowUp': case 'w': case 'W': movePlayer(0, -1); e.preventDefault(); break;
-            case 'ArrowDown': case 's': case 'S': movePlayer(0, 1); e.preventDefault(); break;
-            case 'ArrowLeft': case 'a': case 'A': movePlayer(-1, 0); e.preventDefault(); break;
-            case 'ArrowRight': case 'd': case 'D': movePlayer(1, 0); e.preventDefault(); break;
+            case 'ArrowUp': case 'w': case 'W': e.preventDefault(); startHeldMove(0, -1); break;
+            case 'ArrowDown': case 's': case 'S': e.preventDefault(); startHeldMove(0, 1); break;
+            case 'ArrowLeft': case 'a': case 'A': e.preventDefault(); startHeldMove(-1, 0); break;
+            case 'ArrowRight': case 'd': case 'D': e.preventDefault(); startHeldMove(1, 0); break;
             case 'i': case 'I': if (isMobile) openDrawer('inventory'); e.preventDefault(); break;
         }
     }
@@ -706,6 +735,17 @@ document.addEventListener('keydown', (e) => {
         if (e.key === '1') combatAction('attack');
         else if (e.key === '2') combatAction('potion');
         else if (e.key === '3') combatAction('flee');
+    }
+});
+
+// Keyboard — keyup stops held movement
+document.addEventListener('keyup', (e) => {
+    switch (e.key) {
+        case 'ArrowUp': case 'w': case 'W':
+        case 'ArrowDown': case 's': case 'S':
+        case 'ArrowLeft': case 'a': case 'A':
+        case 'ArrowRight': case 'd': case 'D':
+            stopHeldMove(); break;
     }
 });
 
