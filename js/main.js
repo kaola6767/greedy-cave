@@ -113,7 +113,7 @@ function updateUI() {
                 const item = player.inventory[i];
                 const div = document.createElement('div');
                 div.className = 'inv-item';
-                div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.description()}</span>`;
+                div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.desc()}</span>`;
                 div.onclick = () => { player.equip(item); updateUI(); };
                 div.title = '点击装备';
                 invList.appendChild(div);
@@ -166,6 +166,8 @@ function closeDrawer() {
 function renderDrawerContent() {
     if (!drawerTab) return;
     let html = '';
+    const SLOTS = ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace'];
+    const SLOT_NAMES = { weapon:'武器',helmet:'头盔',armor:'铠甲',gloves:'护手',boots:'靴子',ring1:'戒指1',ring2:'戒指2',necklace:'项链' };
 
     if (drawerTab === 'stats') {
         html = `<h3>玩家状态</h3>
@@ -174,19 +176,19 @@ function renderDrawerContent() {
             <div class="stat-row"><span>攻击</span><span>${player.atk}</span></div>
             <div class="stat-row"><span>防御</span><span>${player.def}</span></div>
             <div class="stat-row"><span>经验</span><span>${player.xp}/${player.xpToNext}</span></div>
-            <div class="stat-row"><span>药水</span><span>${player.potions}</span></div>`;
+            <div class="stat-row"><span>药水</span><span>${player.potions}</span></div>
+            <div class="stat-row"><span>金币</span><span>${player.gold||0}</span></div>`;
     } else if (drawerTab === 'equip') {
         html = '<h3>装备 (点击卸下)</h3>';
-        for (const slot of ['weapon', 'helmet', 'armor', 'ring']) {
+        for (const slot of SLOTS) {
             const item = player.equipment[slot];
-            const names = { weapon: '武器', helmet: '头盔', armor: '铠甲', ring: '戒指' };
             if (item) {
                 html += `<div class="equip-slot" data-slot="${slot}">
-                    <span>${names[slot]}</span>
+                    <span>${SLOT_NAMES[slot]}</span>
                     <span class="${item.rarity.color}">${item.fullName}</span>
                 </div>`;
             } else {
-                html += `<div class="equip-slot"><span>${names[slot]}</span><span style="color:#555">空</span></div>`;
+                html += `<div class="equip-slot"><span>${SLOT_NAMES[slot]}</span><span style="color:#555">空</span></div>`;
             }
         }
     } else if (drawerTab === 'inventory') {
@@ -198,7 +200,7 @@ function renderDrawerContent() {
                 const item = player.inventory[i];
                 html += `<div class="inv-item" data-inv-idx="${i}">
                     <span class="${item.rarity.color}">${item.fullName}</span><br>
-                    <span style="color:#888;font-size:12px;">${item.description()}</span>
+                    <span style="color:#888;font-size:12px;">${item.desc()}</span>
                 </div>`;
             }
         }
@@ -208,7 +210,7 @@ function renderDrawerContent() {
             html += '<div style="color:#555;padding:8px;">暂无消息</div>';
         } else {
             for (const entry of [...drawerLogBuffer].reverse().slice(0, 50)) {
-                html += `<div style="padding:2px 0;font-size:13px;color:${entry.color || '#aaa'}">${entry.msg}</div>`;
+                html += `<div style="padding:2px 0;font-size:13px;color:${entry.color||'#aaa'}">${entry.msg}</div>`;
             }
         }
     }
@@ -305,7 +307,7 @@ function updateTownUI() {
             const item = player.inventory[i];
             const div = document.createElement('div');
             div.className = 'inv-item';
-            div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.description()}</span>`;
+            div.innerHTML = `<span class="${item.rarity.color}">${item.fullName}</span><br><span style="color:#888;font-size:11px;">${item.desc()}</span>`;
             div.onclick = () => { player.equip(item); updateTownUI(); };
             div.title = '点击装备';
             invList.appendChild(div);
