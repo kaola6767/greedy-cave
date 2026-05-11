@@ -135,7 +135,9 @@ function updateUI() {
 
     // Mobile header
     document.getElementById('mob-floor').textContent = `第${floorLevel}层`;
-    document.getElementById('mob-hp-fill').style.width = `${(player.hp / player.maxHp) * 100}%`;
+    const mobHpEl = document.getElementById('mob-hp-fill');
+    mobHpEl.style.width = `${(player.hp / player.maxHp) * 100}%`;
+    updateHpBarColor(mobHpEl, player.hp / player.maxHp);
     document.getElementById('mob-hp-text').textContent = `${player.hp}/${player.maxHp}`;
     document.getElementById('mob-potions').textContent = `🧪${player.potions}`;
 
@@ -383,10 +385,12 @@ function startCombat() {
     const monster = generateMonster(floorLevel);
     combat = new Combat(player, monster);
 
-    document.getElementById('combat-monster-name').textContent = `${monster.emoji} ${monster.name} (Lv.${floorLevel})`;
-    document.getElementById('combat-monster-stats').textContent = `攻击:${monster.atk} 防御:${monster.def}`;
+    document.getElementById('combat-monster-name').innerHTML = `<span class="combat-emoji">${monster.emoji}</span> ${monster.name} <span class="combat-lv">Lv.${floorLevel}</span>`;
+    document.getElementById('combat-monster-stats').textContent = `攻击:${monster.atk}  防御:${monster.def}`;
     document.getElementById('combat-monster-hp').style.width = '100%';
+    document.getElementById('combat-monster-hp').style.background = '#e04040';
     document.getElementById('combat-player-hp').style.width = `${(player.hp / player.maxHp) * 100}%`;
+    updateHpBarColor(document.getElementById('combat-player-hp'), player.hp / player.maxHp);
     document.getElementById('combat-log').innerHTML = '';
     document.getElementById('btn-attack').disabled = false;
     document.getElementById('btn-potion').disabled = player.potions <= 0;
@@ -394,6 +398,12 @@ function startCombat() {
     combatModal.classList.remove('hidden');
 
     addLog(`遭遇了 ${monster.emoji} ${monster.name}!`, '#ff4444');
+}
+
+function updateHpBarColor(el, ratio) {
+    if (ratio > 0.6) el.style.background = '#4caf50';
+    else if (ratio > 0.3) el.style.background = '#ff9800';
+    else el.style.background = '#e04040';
 }
 
 function combatAction(action) {
@@ -424,10 +434,15 @@ function combatAction(action) {
 
 function updateCombatUI() {
     if (!combat) return;
-    document.getElementById('combat-monster-hp').style.width =
-        `${Math.max(0, (combat.monster.hp / combat.monster.maxHp) * 100)}%`;
-    document.getElementById('combat-player-hp').style.width =
-        `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    const mhpRatio = Math.max(0, combat.monster.hp / combat.monster.maxHp);
+    const phpRatio = Math.max(0, player.hp / player.maxHp);
+
+    const mhpEl = document.getElementById('combat-monster-hp');
+    const phpEl = document.getElementById('combat-player-hp');
+    mhpEl.style.width = `${mhpRatio * 100}%`;
+    phpEl.style.width = `${phpRatio * 100}%`;
+    updateHpBarColor(phpEl, phpRatio);
+    updateHpBarColor(mhpEl, mhpRatio);
 
     const logDiv = document.getElementById('combat-log');
     logDiv.innerHTML = combat.log.map(l => `<div>${l}</div>`).join('');
