@@ -10,6 +10,14 @@ class Renderer {
         this.lastPy = player.y;
         this.dirX = 0;
         this.dirY = -1;
+        // Sprite sheet
+        this.spriteImg = new Image();
+        this.spriteLoaded = false;
+        this.spriteImg.onload = () => { this.spriteLoaded = true; };
+        this.spriteImg.src = 'assets/VSCode+Claude替换贪婪洞窟游戏模型.png';
+        // Sprite layout: 3 cols × 4 rows
+        this.spriteCols = 3;
+        this.spriteRows = 4;
     }
 
     render() {
@@ -226,68 +234,53 @@ class Renderer {
 
     drawPlayerCharacter(px, py) {
         const ctx = this.ctx;
-        const bob = Math.abs(this.walkPhase) > 0.05 ? Math.sin(this.walkPhase * 3) * 1 : 0;
-        const s = 0.9;
 
-        // Torch glow
-        const torchX = px + 4;
-        const torchY = py - 4 + bob;
-        const flicker = 1 + Math.sin(this.time * 12) * 0.04 + Math.sin(this.time * 19) * 0.03;
-        const glowR = 6 * flicker;
-        const glow = ctx.createRadialGradient(torchX, torchY, 1, torchX, torchY, glowR);
-        glow.addColorStop(0, 'rgba(255,200,80,0.9)');
-        glow.addColorStop(0.3, 'rgba(255,150,30,0.5)');
-        glow.addColorStop(0.7, 'rgba(255,80,10,0.1)');
-        glow.addColorStop(1, 'rgba(255,50,0,0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath(); ctx.arc(torchX, torchY, glowR, 0, Math.PI * 2); ctx.fill();
+        if (this.spriteLoaded && this.spriteImg.naturalWidth > 0) {
+            const fw = this.spriteImg.naturalWidth / this.spriteCols;
+            const fh = this.spriteImg.naturalHeight / this.spriteRows;
 
-        // Torch flame
-        ctx.fillStyle = '#ffcc00';
-        ctx.beginPath(); ctx.arc(torchX, torchY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(torchX, torchY - 2, 1, 0, Math.PI * 2); ctx.fill();
+            // Determine row (direction): down=0, left=1, right=2, up=3
+            let row = 0;
+            if (Math.abs(this.dirY) >= Math.abs(this.dirX)) {
+                row = this.dirY > 0 ? 0 : 3; // down or up
+            } else {
+                row = this.dirX < 0 ? 1 : 2; // left or right
+            }
 
-        // Torch stick
-        ctx.strokeStyle = '#8B6914';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(px + 3, py - 1); ctx.lineTo(torchX, torchY); ctx.stroke();
+            // Determine column (animation frame)
+            let col = 0;
+            if (Math.abs(this.walkPhase) > 0.05) {
+                col = Math.floor(this.walkPhase * 2) % 2 + 1; // col 1 or 2
+            }
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.beginPath(); ctx.ellipse(px, py + 8, 5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+            const drawSize = CELL_SIZE * 2.5;
+            const dx = px - drawSize / 2;
+            const dy = py - drawSize + CELL_SIZE / 2;
 
-        // Legs with walk animation
-        const legSwing = Math.sin(this.walkPhase * 3) * 2.5;
-        ctx.strokeStyle = '#c8b89a';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(px, py + 3 + bob); ctx.lineTo(px - legSwing, py + 8); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(px, py + 3 + bob); ctx.lineTo(px + legSwing, py + 8); ctx.stroke();
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + CELL_SIZE / 2, drawSize * 0.35, drawSize * 0.08, 0, 0, Math.PI * 2);
+            ctx.fill();
 
-        // Left arm
-        ctx.strokeStyle = '#d4c4a8';
-        ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.moveTo(px, py + 1 + bob); ctx.lineTo(px - 4, py + 4 + bob); ctx.stroke();
-
-        // Right arm (holding torch)
-        ctx.beginPath(); ctx.moveTo(px, py + 1 + bob); ctx.lineTo(px + 3, py - 1 + bob); ctx.stroke();
-
-        // Body
-        ctx.fillStyle = '#5a7a5a';
-        ctx.fillRect(px - 2.5, py + bob, 5, 5);
-
-        // Head
-        ctx.fillStyle = '#e8d5b7';
-        ctx.beginPath(); ctx.arc(px, py - 2 + bob, 3.5, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#c8b090';
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
-        // Eyes (tiny dots)
-        ctx.fillStyle = '#222';
-        ctx.beginPath(); ctx.arc(px - 1, py - 2.5 + bob, 0.7, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(px + 1, py - 2.5 + bob, 0.7, 0, Math.PI * 2); ctx.fill();
+            // Draw sprite frame
+            ctx.drawImage(
+                this.spriteImg,
+                col * fw, row * fh, fw, fh,
+                dx, dy, drawSize, drawSize
+            );
+        } else {
+            // Fallback: simple circle while loading
+            const bob = Math.abs(this.walkPhase) > 0.05 ? Math.sin(this.walkPhase * 3) * 1 : 0;
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + CELL_SIZE * 0.8, CELL_SIZE * 0.6, CELL_SIZE * 0.15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#4488cc';
+            ctx.beginPath();
+            ctx.arc(px, py + bob, CELL_SIZE * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     drawFog(cw, ch) {
