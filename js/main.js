@@ -334,9 +334,6 @@ async function renderLeaderboard() {
                 html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
             }
         }
-        if (!getGitHubToken()) {
-            html += '<div style="color:#884;padding:6px;font-size:11px;margin-top:6px;">⚠ 未设置GitHub Token，无法上传成绩</div>';
-        }
         list.innerHTML = html;
     } catch {
         list.innerHTML = '<div style="color:#f44;padding:8px;">加载失败，请检查网络</div>';
@@ -690,13 +687,6 @@ document.getElementById('btn-change-name').addEventListener('click', () => {
     }
 });
 
-// Token setup
-document.getElementById('btn-set-token')?.addEventListener('click', () => {
-    const t = prompt('输入 GitHub Token (需要 repo 权限):', getGitHubToken());
-    if (t && t.trim()) {
-        setGitHubToken(t.trim());
-    }
-});
 document.getElementById('btn-town-equip').addEventListener('click', () => {
     document.getElementById('town-leaderboard').classList.add('hidden');
     document.getElementById('town-codex').classList.add('hidden');
