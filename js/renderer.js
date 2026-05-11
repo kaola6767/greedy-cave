@@ -188,24 +188,48 @@ class Renderer {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.beginPath(); ctx.ellipse(cx, my + 7, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
 
-        // Emoji for individual look
-        const emoji = data ? data.emoji : '👾';
-        const emojiFont = `${CELL_SIZE + 2}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-        ctx.font = emojiFont;
+        // Color-coded body based on name hash
+        const name = data ? data.name : '?';
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
+        const hue = (hash & 0xFF) % 360;
+        const bodyColor = `hsl(${hue}, 50%, 35%)`;
+        const lightColor = `hsl(${hue}, 60%, 50%)`;
+
+        // Body circle
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.arc(cx, my, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = lightColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Label (first char of name)
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(emoji, cx, my);
+        ctx.fillText(name[0], cx, my);
 
-        // Crown for elite
+        // Elite: golden ring + crown
         if (isElite) {
-            ctx.font = `12px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-            ctx.fillText('👑', cx + 4, my - 7);
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(cx, my, 8, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillText('★', cx + 6, my - 5);
         }
 
-        // Boss special
+        // Boss: red ring + skull mark
         if (isBoss) {
-            ctx.font = `12px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-            ctx.fillText('💀', cx + 5, my - 8);
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.arc(cx, my, 9, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#FF0000';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillText('☠', cx + 6, my - 6);
         }
     }
 
