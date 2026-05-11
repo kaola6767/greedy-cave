@@ -34,6 +34,12 @@ class Renderer {
         ctx.clearRect(0, 0, cw, ch);
 
         // Camera
+        // Dynamic vision: torch light diameter ≈ 3/4 of smaller canvas dimension
+        const torchRadius = Math.min(cw, ch) * 0.375;
+        const visionCells = Math.ceil(torchRadius / CELL_SIZE);
+        this.torchRadius = torchRadius;
+        this.visionCells = visionCells;
+
         let camX = this.player.x * CELL_SIZE - cw / 2 + CELL_SIZE / 2;
         let camY = this.player.y * CELL_SIZE - ch / 2 + CELL_SIZE / 2;
         const maxCamX = d.cols * CELL_SIZE - cw;
@@ -80,11 +86,18 @@ class Renderer {
                     }
                 } else {
                     const isCorridor = cell.tile === TILE.CORRIDOR;
-                    ctx.fillStyle = isCorridor ? '#1e1e2e' : '#262638';
-                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-                    if ((x + y) % 5 === 0 && !isCorridor) {
+                    if (isCorridor) {
+                        ctx.fillStyle = '#3a3028';
+                        ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
                         ctx.fillStyle = 'rgba(255,255,255,0.015)';
                         ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                    } else {
+                        ctx.fillStyle = '#262638';
+                        ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                        if ((x + y) % 5 === 0) {
+                            ctx.fillStyle = 'rgba(255,255,255,0.015)';
+                            ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                        }
                     }
                 }
 
@@ -269,16 +282,16 @@ class Renderer {
         const playerScreenX = this.player.x * CELL_SIZE - this.camX + CELL_SIZE / 2;
         const playerScreenY = this.player.y * CELL_SIZE - this.camY + CELL_SIZE / 2;
 
+        const tr = this.torchRadius || 144;
         const flicker = 1 + Math.sin(this.time * 8) * 0.02;
-        const innerR = 4.5 * CELL_SIZE * flicker;
-        const outerR = 8 * CELL_SIZE * flicker;
+        const innerR = tr * 0.55 * flicker;
+        const outerR = tr * flicker;
 
-        // Create radial gradient centered on player's screen position
         const grad = ctx.createRadialGradient(playerScreenX, playerScreenY, innerR, playerScreenX, playerScreenY, outerR);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
-        grad.addColorStop(0.8, 'rgba(0,0,0,0.7)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.95)');
+        grad.addColorStop(0.45, 'rgba(0,0,0,0.08)');
+        grad.addColorStop(0.75, 'rgba(0,0,0,0.6)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.96)');
 
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, cw, ch);

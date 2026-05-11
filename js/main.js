@@ -48,15 +48,10 @@ function detectMobile() {
 function resizeCanvas() {
     detectMobile();
     const main = document.getElementById('game-main');
-    if (isMobile) {
-        const w = main.clientWidth || window.innerWidth;
-        const h = main.clientHeight || window.innerHeight - 80;
-        canvas.width = Math.max(w, 300);
-        canvas.height = Math.max(h, 300);
-    } else {
-        canvas.width = 800;
-        canvas.height = 560;
-    }
+    const w = main.clientWidth || window.innerWidth;
+    const h = main.clientHeight || window.innerHeight - 80;
+    canvas.width = Math.max(w, 300);
+    canvas.height = Math.max(h, 300);
     if (renderer) {
         renderer.canvas = canvas;
         renderer.ctx = canvas.getContext('2d');
@@ -342,8 +337,8 @@ function generateFloor() {
     player.x = dungeon.startX;
     player.y = dungeon.startY;
     player.hp = player.maxHp;
-    dungeon.updateVisibility(player.x, player.y, 7);
     renderer = new Renderer(canvas, dungeon, player);
+    dungeon.updateVisibility(player.x, player.y, renderer.visionCells || 10);
     renderer.render();
     updateUI();
     addLog(`进入第 ${floorLevel} 层地牢`, '#ffd700');
@@ -375,7 +370,7 @@ function movePlayer(dx, dy) {
         updateUI();
     }
 
-    dungeon.updateVisibility(player.x, player.y, 7);
+    dungeon.updateVisibility(player.x, player.y, renderer.visionCells || 10);
     renderer.render();
     updateUI();
 }

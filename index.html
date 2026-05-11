@@ -101,10 +101,36 @@
                 <span id="dh-floor">第1层</span>
             </div>
 
-            <div id="game-main">
-                <canvas id="game-canvas"></canvas>
-                <div id="floor-indicator">第 1 层</div>
-                <button id="btn-return-town" title="返回主城">🏠</button>
+            <div id="game-area-wrapper">
+                <div id="game-main">
+                    <canvas id="game-canvas"></canvas>
+                    <div id="floor-indicator">第 1 层</div>
+                    <button id="btn-return-town" title="返回主城">🏠</button>
+                </div>
+
+                <!-- Desktop side panel -->
+                <div id="side-panel">
+                    <div id="player-stats">
+                        <h3>玩家状态</h3>
+                        <div class="stat-row"><span>等级</span><span id="stat-level">1</span></div>
+                        <div class="stat-row"><span>生命</span><span id="stat-hp">100/100</span></div>
+                        <div class="stat-row"><span>攻击</span><span id="stat-atk">10</span></div>
+                        <div class="stat-row"><span>防御</span><span id="stat-def">5</span></div>
+                        <div class="stat-row"><span>经验</span><span id="stat-xp">0/50</span></div>
+                        <div class="stat-row"><span>药水</span><span id="stat-potions">3</span></div>
+                    </div>
+                    <div id="player-equipment">
+                        <h3>装备</h3>
+                        <div class="equip-slot" data-slot="weapon"><span>武器</span><span id="eq-weapon">空</span></div>
+                        <div class="equip-slot" data-slot="helmet"><span>头盔</span><span id="eq-helmet">空</span></div>
+                        <div class="equip-slot" data-slot="armor"><span>铠甲</span><span id="eq-armor">空</span></div>
+                        <div class="equip-slot" data-slot="ring"><span>戒指</span><span id="eq-ring">空</span></div>
+                    </div>
+                    <div id="player-inventory">
+                        <h3>背包</h3>
+                        <div id="inv-list"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Virtual D-pad (mobile only) -->
@@ -113,30 +139,6 @@
                 <button class="dpad-btn" data-dx="-1" data-dy="0">◀</button>
                 <button class="dpad-btn" data-dx="1" data-dy="0">▶</button>
                 <button class="dpad-btn" data-dx="0" data-dy="1">▼</button>
-            </div>
-
-            <!-- Desktop side panel -->
-            <div id="side-panel">
-                <div id="player-stats">
-                    <h3>玩家状态</h3>
-                    <div class="stat-row"><span>等级</span><span id="stat-level">1</span></div>
-                    <div class="stat-row"><span>生命</span><span id="stat-hp">100/100</span></div>
-                    <div class="stat-row"><span>攻击</span><span id="stat-atk">10</span></div>
-                    <div class="stat-row"><span>防御</span><span id="stat-def">5</span></div>
-                    <div class="stat-row"><span>经验</span><span id="stat-xp">0/50</span></div>
-                    <div class="stat-row"><span>药水</span><span id="stat-potions">3</span></div>
-                </div>
-                <div id="player-equipment">
-                    <h3>装备</h3>
-                    <div class="equip-slot" data-slot="weapon"><span>武器</span><span id="eq-weapon">空</span></div>
-                    <div class="equip-slot" data-slot="helmet"><span>头盔</span><span id="eq-helmet">空</span></div>
-                    <div class="equip-slot" data-slot="armor"><span>铠甲</span><span id="eq-armor">空</span></div>
-                    <div class="equip-slot" data-slot="ring"><span>戒指</span><span id="eq-ring">空</span></div>
-                </div>
-                <div id="player-inventory">
-                    <h3>背包</h3>
-                    <div id="inv-list"></div>
-                </div>
             </div>
 
             <!-- Desktop message log -->
