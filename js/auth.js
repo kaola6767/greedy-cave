@@ -5,8 +5,10 @@ const AUTH_KEYS = {
     displayNames: 'greedyDisplayNames',
 };
 
-const LB_URL = 'https://jsonblob.com/api/jsonBlob/019e17b0-de2b-7128-86f1-197c63cf678b';
+const LB_URL = 'https://raw.githubusercontent.com/kaola6767/greedy-cave/master/leaderboard.json';
+const LB_API = 'https://api.github.com/repos/kaola6767/greedy-cave/contents/leaderboard.json';
 let leaderboardCache = null;
+let leaderboardSha = null;
 
 function getUsers() {
     try { return JSON.parse(localStorage.getItem(AUTH_KEYS.users)) || []; }
@@ -106,7 +108,7 @@ function restoreProgress(player, floorLevel) {
     return save.floorLevel || 1;
 }
 
-// --- Leaderboard (jsonblob.com — free, no auth) ---
+// --- Leaderboard (GitHub API, token from localStorage) ---
 async function fetchLeaderboard() {
     try {
         const resp = await fetch(LB_URL + '?t=' + Date.now());
@@ -115,25 +117,51 @@ async function fetchLeaderboard() {
         leaderboardCache = data;
         return data;
     } catch (e) {
-        console.log('LB fetch failed:', e.message);
         return leaderboardCache || [];
     }
 }
 
-async function saveLeaderboardRemote(data) {
+async function fetchLeaderboardSha() {
+    const token = getGitHubToken();
+    if (!token) return null;
     try {
-        const resp = await fetch(LB_URL, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+        const resp = await fetch(LB_API, {
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
         });
         if (resp.ok) {
+            const d = await resp.json();
+            leaderboardSha = d.sha;
+            return d.sha;
+        }
+    } catch {}
+    return null;
+}
+
+async function saveLeaderboardRemote(data) {
+    const token = getGitHubToken();
+    if (!token) return { ok: false, msg: '未设置Token, 主城🔑设置' };
+    if (!leaderboardSha) {
+        const sha = await fetchLeaderboardSha();
+        if (!sha) return { ok: false, msg: '无法获取SHA, Token是否有效?' };
+    }
+    const content = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data, null, 2))));
+    const body = { message: 'Update leaderboard', content, sha: leaderboardSha };
+    try {
+        const resp = await fetch(LB_API, {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
+            body: JSON.stringify(body),
+        });
+        if (resp.ok) {
+            const r = await resp.json();
+            leaderboardSha = r.content?.sha;
             leaderboardCache = data;
             return { ok: true };
         }
-        return { ok: false, msg: 'HTTP ' + resp.status };
-    } catch (e) {
-        return { ok: false, msg: e.message };
+        leaderboardSha = null;
+        return { ok: false, msg: 'API错误 ' + resp.status };
+    } catch {
+        return { ok: false, msg: '网络错误' };
     }
 }
 
@@ -148,6 +176,7 @@ async function updateMaxFloor(floorLevel) {
         return await saveLeaderboardRemote(lb);
     } else if (!entry) {
         lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
+        leaderboardSha = null;
         return await saveLeaderboardRemote(lb);
     }
     return { ok: false, msg: '未超过最高记录' };
@@ -156,6 +185,13 @@ async function updateMaxFloor(floorLevel) {
 async function getTopLeaderboard(n) {
     const lb = await fetchLeaderboard();
     return lb.sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
+}
+
+function getGitHubToken() {
+    return localStorage.getItem('greedyGHToken') || '';
+}
+function setGitHubToken(token) {
+    localStorage.setItem('greedyGHToken', token);
 }
 
 // --- Display Name ---
