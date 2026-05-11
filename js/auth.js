@@ -205,7 +205,7 @@ async function getTopLeaderboard(n) {
     return lb.sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
 }
 
-const EMBEDDED_TOKEN = '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';
+const EMBEDDED_TOKEN = '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';
 
 function getGitHubToken() {
     return localStorage.getItem('greedyGHToken') || EMBEDDED_TOKEN;
