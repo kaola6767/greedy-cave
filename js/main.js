@@ -241,11 +241,11 @@ drawerOverlay.addEventListener('click', closeDrawer);
 
 // --- Game Flow ---
 function startGame() {
+    gameState = STATE.DUNGEON;
     player = new Player();
     floorLevel = 1;
     titleScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
-    // Defer canvas setup until layout completes (critical for mobile)
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             resizeCanvas();
