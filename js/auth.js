@@ -5,10 +5,6 @@ const AUTH_KEYS = {
     displayNames: 'greedyDisplayNames',
 };
 
-const LB_URL = 'https://raw.githubusercontent.com/kaola6767/greedy-cave/master/leaderboard.json';
-const LB_API = 'https://api.github.com/repos/kaola6767/greedy-cave/contents/leaderboard.json';
-let leaderboardCache = null;
-let leaderboardSha = null;
 
 function getUsers() {
     try { return JSON.parse(localStorage.getItem(AUTH_KEYS.users)) || []; }
@@ -108,90 +104,56 @@ function restoreProgress(player, floorLevel) {
     return save.floorLevel || 1;
 }
 
-// --- Leaderboard (GitHub API, token from localStorage) ---
-async function fetchLeaderboard() {
-    try {
-        const resp = await fetch(LB_URL + '?t=' + Date.now());
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const data = await resp.json();
-        leaderboardCache = data;
-        return data;
-    } catch (e) {
-        return leaderboardCache || [];
-    }
+// --- Leaderboard (localStorage) ---
+const LB_KEY = 'greedyLeaderboard';
+
+function getLeaderboard() {
+    try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch { return []; }
+}
+function saveLeaderboard(data) {
+    localStorage.setItem(LB_KEY, JSON.stringify(data));
 }
 
-async function fetchLeaderboardSha() {
-    const token = getGitHubToken();
-    if (!token) return null;
-    try {
-        const resp = await fetch(LB_API, {
-            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
-        });
-        if (resp.ok) {
-            const d = await resp.json();
-            leaderboardSha = d.sha;
-            return d.sha;
-        }
-    } catch {}
-    return null;
-}
-
-async function saveLeaderboardRemote(data) {
-    const token = getGitHubToken();
-    if (!token) return { ok: false, msg: '未设置Token, 主城🔑设置' };
-    if (!leaderboardSha) {
-        const sha = await fetchLeaderboardSha();
-        if (!sha) return { ok: false, msg: '无法获取SHA, Token是否有效?' };
-    }
-    const content = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data, null, 2))));
-    const body = { message: 'Update leaderboard', content, sha: leaderboardSha };
-    try {
-        const resp = await fetch(LB_API, {
-            method: 'PUT',
-            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
-            body: JSON.stringify(body),
-        });
-        if (resp.ok) {
-            const r = await resp.json();
-            leaderboardSha = r.content?.sha;
-            leaderboardCache = data;
-            return { ok: true };
-        }
-        leaderboardSha = null;
-        return { ok: false, msg: 'API错误 ' + resp.status };
-    } catch {
-        return { ok: false, msg: '网络错误' };
-    }
-}
-
-async function updateMaxFloor(floorLevel) {
+function updateMaxFloor(floorLevel) {
     const username = getCurrentUser();
     if (!username) return { ok: false, msg: '未登录' };
-    const lb = await fetchLeaderboard();
+    const lb = getLeaderboard();
     const entry = lb.find(e => e.name === username);
     if (entry && floorLevel > entry.maxFloor) {
         entry.maxFloor = floorLevel;
         entry.updatedAt = Date.now();
-        return await saveLeaderboardRemote(lb);
     } else if (!entry) {
         lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
-        leaderboardSha = null;
-        return await saveLeaderboardRemote(lb);
+    } else {
+        return { ok: false, msg: '未超过最高记录' };
     }
-    return { ok: false, msg: '未超过最高记录' };
+    saveLeaderboard(lb);
+    return { ok: true };
 }
 
-async function getTopLeaderboard(n) {
-    const lb = await fetchLeaderboard();
-    return lb.sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
+function getTopLeaderboard(n) {
+    return getLeaderboard().sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
 }
 
-function getGitHubToken() {
-    return localStorage.getItem('greedyGHToken') || '';
+function exportLeaderboard() {
+    return JSON.stringify(getLeaderboard(), null, 2);
 }
-function setGitHubToken(token) {
-    localStorage.setItem('greedyGHToken', token);
+function importLeaderboard(json) {
+    try {
+        const data = JSON.parse(json);
+        if (!Array.isArray(data)) return false;
+        const lb = getLeaderboard();
+        for (const e of data) {
+            const existing = lb.find(x => x.name === e.name);
+            if (existing) {
+                if (e.maxFloor > existing.maxFloor) existing.maxFloor = e.maxFloor;
+            } else {
+                lb.push(e);
+            }
+        }
+        saveLeaderboard(lb);
+        return true;
+    } catch { return false; }
 }
 
 // --- Display Name ---

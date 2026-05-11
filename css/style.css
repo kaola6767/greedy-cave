@@ -337,6 +337,17 @@ body {
     color: #ccc;
 }
 
+.btn-small {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #aaa;
+    border-radius: 3px;
+}
+
 /* Return to town button (dungeon) */
 #btn-return-town {
     position: absolute;

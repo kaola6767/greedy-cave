@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v1.5.3';
+const GAME_VERSION = 'v1.6';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -318,27 +318,36 @@ function updateTownUI() {
     }
 }
 
-async function renderLeaderboard() {
+function renderLeaderboard() {
     const list = document.getElementById('leaderboard-list');
-    list.innerHTML = '<div style="color:#555;padding:8px;">加载中...</div>';
-    try {
-        const top = await getTopLeaderboard(10);
-        let html = '';
-        if (top.length === 0) {
-            html = '<div style="color:#555;padding:8px;">暂无记录，快去冲榜吧!</div>';
-        } else {
-            const medals = ['🥇','🥈','🥉'];
-            for (let i = 0; i < top.length; i++) {
-                const e = top[i];
-                const dn = getDisplayName(e.name);
-                const medal = i < 3 ? medals[i] : `${i + 1}`;
-                html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
-            }
+    const top = getTopLeaderboard(10);
+    let html = '';
+    if (top.length === 0) {
+        html = '<div style="color:#555;padding:8px;">暂无记录，快去冲榜吧!</div>';
+    } else {
+        const medals = ['🥇','🥈','🥉'];
+        for (let i = 0; i < top.length; i++) {
+            const e = top[i];
+            const dn = getDisplayName(e.name);
+            const medal = i < 3 ? medals[i] : `${i + 1}`;
+            html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
         }
-        list.innerHTML = html;
-    } catch {
-        list.innerHTML = '<div style="color:#f44;padding:8px;">加载失败，请检查网络</div>';
     }
+    html += '<div style="margin-top:10px;display:flex;gap:6px;"><button id="btn-export-lb" class="btn-small">📤 导出</button><button id="btn-import-lb" class="btn-small">📥 导入</button></div>';
+    list.innerHTML = html;
+    document.getElementById('btn-export-lb').onclick = () => {
+        const json = exportLeaderboard();
+        navigator.clipboard.writeText(json).then(() => addLog('排行榜已复制到剪贴板!', '#44ff44'));
+    };
+    document.getElementById('btn-import-lb').onclick = () => {
+        const json = prompt('粘贴排行榜数据:');
+        if (json && importLeaderboard(json)) {
+            renderLeaderboard();
+            addLog('排行榜已合并!', '#44ff44');
+        } else if (json) {
+            addLog('格式错误!', '#ff4444');
+        }
+    };
 }
 
 function renderCodex() {
@@ -584,14 +593,8 @@ function nextFloor() {
     floorLevel++;
     gameState = STATE.DUNGEON;
     saveProgress(player, floorLevel);
-    addLog('正准备更新排行榜...', '#888');
-    updateMaxFloor(floorLevel).then(result => {
-        if (result && result.ok) addLog('🏆 排行榜已更新!', '#ffd700');
-        else if (result && result.msg) addLog('⚠ ' + result.msg, '#ffaa00');
-        else addLog('⚠ 排行榜更新失败(未知原因)', '#ffaa00');
-    }).catch(e => {
-        addLog('⚠ 排行榜异常: ' + e.message, '#ff4444');
-    });
+    const result = updateMaxFloor(floorLevel);
+    if (result.ok) addLog('🏆 排行榜已更新!', '#ffd700');
     generateFloor();
 }
 
@@ -681,13 +684,6 @@ document.getElementById('btn-town-codex').addEventListener('click', () => {
     const panel = document.getElementById('town-codex');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) renderCodex();
-});
-document.getElementById('btn-set-token')?.addEventListener('click', () => {
-    const t = prompt('输入 GitHub Token (需要有 repo 权限):', getGitHubToken());
-    if (t && t.trim()) {
-        setGitHubToken(t.trim());
-        addLog('Token 已保存!', '#44ff44');
-    }
 });
 document.getElementById('btn-change-name').addEventListener('click', () => {
     const username = getCurrentUser();
