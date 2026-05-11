@@ -2,54 +2,93 @@ class Player {
     constructor() {
         this.x = 0;
         this.y = 0;
-        this.baseHp = 100;
-        this.baseAtk = 8;
-        this.baseDef = 3;
-        this.maxHp = 100;
-        this.hp = 100;
-        this.atk = 8;
-        this.def = 3;
         this.level = 1;
         this.xp = 0;
-        this.xpToNext = 50;
+        this.xpToNext = 60;
         this.potions = 3;
-        this.equipment = { weapon: null, helmet: null, armor: null, ring: null };
+        this.gold = 0;
+
+        // 8 equipment slots
+        this.equipment = {
+            weapon: null, helmet: null, armor: null, gloves: null,
+            boots: null, ring1: null, ring2: null, necklace: null,
+        };
         this.inventory = [];
+
+        // Derived stats (set by recalcStats)
+        this.maxHp = 120;
+        this.hp = 120;
+        this.atk = 13;
+        this.def = 6.5;
         this.critChance = 5;
+        this.dodge = 0;
+        this.lifesteal = 0;
+        this.goldBonus = 0;
+        this.xpBonus = 0;
+        this.elemDmg = 0;
+        this.resist = 0;
+
+        this.recalcStats();
     }
 
     recalcStats() {
-        this.maxHp = this.baseHp + (this.level - 1) * 15;
-        this.atk = this.baseAtk + (this.level - 1) * 2;
-        this.def = this.baseDef + (this.level - 1) * 1;
+        const L = this.level;
+        this.maxHp = Math.round(100 + L * 20);
+        this.atk = Math.round(10 + L * 3);
+        this.def = Math.round(5 + L * 1.5);
         this.critChance = 5;
+        this.dodge = 0;
+        this.lifesteal = 0;
+        this.goldBonus = 0;
+        this.xpBonus = 0;
+        this.elemDmg = 0;
+        this.resist = 0;
 
-        for (const slot of Object.values(this.equipment)) {
-            if (!slot) continue;
-            this.atk += slot.atk || 0;
-            this.def += slot.def || 0;
-            this.maxHp += slot.hp || 0;
-            if (slot.affixes) {
-                for (const a of slot.affixes) {
+        for (const item of Object.values(this.equipment)) {
+            if (!item) continue;
+            if (item.stats) {
+                this.atk += item.stats.atk || 0;
+                this.def += item.stats.def || 0;
+                this.maxHp += item.stats.hp || 0;
+            }
+            if (item.affixes) {
+                for (const a of item.affixes) {
                     if (a.stat === 'atk') this.atk += a.value;
                     else if (a.stat === 'def') this.def += a.value;
                     else if (a.stat === 'hp') this.maxHp += a.value;
                     else if (a.stat === 'critChance') this.critChance += a.value;
+                    else if (a.stat === 'dodge') this.dodge += a.value;
+                    else if (a.stat === 'lifesteal') this.lifesteal += a.value;
+                    else if (a.stat === 'goldBonus') this.goldBonus += a.value;
+                    else if (a.stat === 'xpBonus') this.xpBonus += a.value;
+                    else if (a.stat === 'elemDmg') this.elemDmg += a.value;
+                    else if (a.stat === 'resist') this.resist += a.value;
                 }
             }
         }
+
+        // Set bonus
+        const setB = calcSetBonus(this.equipment);
+        if (setB.atkPct) this.atk = Math.round(this.atk * (1 + setB.atkPct));
+        // dmgReduct applied in combat
+
+        // Legendary: 不死鸟 tracked in combat
+
         this.hp = Math.min(this.hp, this.maxHp);
     }
 
     gainXp(amount) {
-        this.xp += amount;
-        while (this.xp >= this.xpToNext) {
+        const bonus = 1 + this.xpBonus / 100;
+        const gained = Math.round(amount * bonus);
+        this.xp += gained;
+        while (this.xp >= this.xpToNext && this.level < 100) {
             this.xp -= this.xpToNext;
             this.level++;
-            this.xpToNext = Math.floor(this.xpToNext * 1.5);
-            this.hp = this.maxHp; // full heal on level up
-            addLog(`🎉 升级! 当前等级 ${this.level}`, '#ffd700');
+            this.xpToNext = Math.floor(this.xpToNext * 1.4);
+            this.hp = this.maxHp;
+            addLog(`🎉 升级! Lv.${this.level}`, '#ffd700');
         }
+        this.xp = Math.min(this.xp, this.xpToNext);
         this.recalcStats();
     }
 
@@ -67,7 +106,7 @@ class Player {
     unequip(slot) {
         const item = this.equipment[slot];
         if (!item) return;
-        if (this.inventory.length >= 20) {
+        if (this.inventory.length >= 30) {
             addLog('背包已满!', '#ff4444');
             return;
         }
@@ -78,8 +117,8 @@ class Player {
     }
 
     addToInventory(item) {
-        if (this.inventory.length >= 20) {
-            addLog('背包已满，无法拾取!', '#ff4444');
+        if (this.inventory.length >= 30) {
+            addLog('背包已满!', '#ff4444');
             return false;
         }
         this.inventory.push(item);
@@ -89,9 +128,9 @@ class Player {
     usePotion() {
         if (this.potions <= 0) return false;
         this.potions--;
-        const heal = 30 + rand(0, 20);
+        const heal = Math.round(this.maxHp * 0.3 + rand(0, 20));
         this.hp = Math.min(this.maxHp, this.hp + heal);
-        addLog(`使用了药水，恢复了 ${heal} 点生命`, '#44ff44');
+        addLog(`使用药水，恢复 ${heal} HP`, '#44ff44');
         return true;
     }
 }

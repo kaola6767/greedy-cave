@@ -1,30 +1,92 @@
-const MONSTER_TYPES = [
-    { name: '史莱姆',   baseHp: 20, baseAtk: 4,  baseDef: 1, xp: 15, emoji: '🟢' },
-    { name: '骷髅兵',   baseHp: 30, baseAtk: 7,  baseDef: 3, xp: 25, emoji: '💀' },
-    { name: '哥布林',   baseHp: 25, baseAtk: 6,  baseDef: 2, xp: 20, emoji: '👺' },
-    { name: '暗影蜘蛛', baseHp: 35, baseAtk: 9,  baseDef: 3, xp: 30, emoji: '🕷️' },
-    { name: '石像鬼',   baseHp: 45, baseAtk: 10, baseDef: 6, xp: 40, emoji: '🗿' },
-    { name: '暗黑法师', baseHp: 30, baseAtk: 13, baseDef: 2, xp: 35, emoji: '🧙' },
-    { name: '食人魔',   baseHp: 60, baseAtk: 11, baseDef: 5, xp: 50, emoji: '👹' },
-    { name: '恶魔',     baseHp: 80, baseAtk: 15, baseDef: 8, xp: 70, emoji: '👿' },
-    { name: '龙',       baseHp:120, baseAtk: 20, baseDef:12, xp:100, emoji: '🐉' },
+const MONSTER_NAMES = [
+    { name: '史莱姆',   emoji: '🟢' },
+    { name: '骷髅兵',   emoji: '💀' },
+    { name: '哥布林',   emoji: '👺' },
+    { name: '暗影蜘蛛', emoji: '🕷️' },
+    { name: '石像鬼',   emoji: '🗿' },
+    { name: '暗黑法师', emoji: '🧙' },
+    { name: '食人魔',   emoji: '👹' },
+    { name: '恶魔',     emoji: '👿' },
+    { name: '龙',       emoji: '🐉' },
 ];
 
-function generateMonster(floorLevel) {
-    const idx = Math.min(floorLevel - 1, MONSTER_TYPES.length - 1);
-    const pool = MONSTER_TYPES.slice(0, idx + 1);
-    const template = pick(pool);
+const ELITE_PREFIXES = [
+    { name: '精英', emoji: '⭐', color: '#ffaa00' },
+    { name: '狂怒', emoji: '🔥', color: '#ff4400' },
+    { name: '暗影', emoji: '🌑', color: '#8844ff' },
+    { name: '冰霜', emoji: '❄️', color: '#44ccff' },
+    { name: '剧毒', emoji: '☠️', color: '#44ff44' },
+    { name: '巨石', emoji: '🪨', color: '#aaaaaa' },
+];
 
-    const scale = 1 + (floorLevel - 1) * 0.2;
-    const variance = randFloat(0.85, 1.15);
+const BOSS_NAMES = [
+    { name: '深渊领主', emoji: '👁️' },
+    { name: '死灵法王', emoji: '☠️' },
+    { name: '炎魔',     emoji: '🔥' },
+    { name: '远古巨龙', emoji: '🐲' },
+    { name: '暗影之王', emoji: '🖤' },
+];
+
+function monsterBaseStats(N) {
+    const hp = Math.round(45 + N * 20 + Math.pow(N, 1.2) * 1.8);
+    const atk = Math.round(10 + N * 6 + Math.pow(N, 1.08) * 0.8);
+    const def = Math.round(3 + N * 2 + Math.pow(N, 1.08) * 0.4);
+    return { hp, atk, def };
+}
+
+function generateMonster(floorLevel) {
+    const isBoss = (floorLevel % 10 === 0);
+    const isElite = !isBoss && Math.random() < 0.15;
+    const N = floorLevel;
+
+    const base = monsterBaseStats(N);
+    const template = pick(MONSTER_NAMES);
+
+    if (isBoss) {
+        const bossTmpl = pick(BOSS_NAMES);
+        return {
+            name: bossTmpl.name,
+            emoji: bossTmpl.emoji,
+            maxHp: Math.round(base.hp * 6 + N * 20),
+            hp: Math.round(base.hp * 6 + N * 20),
+            atk: Math.round(base.atk * 2.5 + N * 2),
+            def: Math.round(base.def * 3),
+            xp: Math.round((15 + N * 4) * 9),
+            gold: Math.round((5 + N * 2) * 9 * randFloat(0.7, 1.3)),
+            isBoss: true,
+            isElite: false,
+            color: '#ff0000',
+        };
+    }
+
+    if (isElite) {
+        const prefix = pick(ELITE_PREFIXES);
+        return {
+            name: prefix.name + ' ' + template.name,
+            emoji: prefix.emoji + template.emoji,
+            maxHp: Math.round(base.hp * 2.5),
+            hp: Math.round(base.hp * 2.5),
+            atk: Math.round(base.atk * 1.8),
+            def: Math.round(base.def * 2.0),
+            xp: Math.round((15 + N * 4) * 3),
+            gold: Math.round((5 + N * 2) * 3 * randFloat(0.7, 1.3)),
+            isBoss: false,
+            isElite: true,
+            color: prefix.color,
+        };
+    }
 
     return {
         name: template.name,
         emoji: template.emoji,
-        maxHp: Math.floor(template.baseHp * scale * variance),
-        hp: Math.floor(template.baseHp * scale * variance),
-        atk: Math.floor(template.baseAtk * scale * variance),
-        def: Math.floor(template.baseDef * scale * variance),
-        xp: Math.floor(template.xp * scale),
+        maxHp: base.hp,
+        hp: base.hp,
+        atk: base.atk,
+        def: base.def,
+        xp: Math.round(15 + N * 4),
+        gold: Math.round((5 + N * 2) * randFloat(0.7, 1.3)),
+        isBoss: false,
+        isElite: false,
+        color: '#ff4444',
     };
 }

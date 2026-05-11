@@ -62,6 +62,7 @@ function saveProgress(player, floorLevel) {
         xp: player.xp,
         xpToNext: player.xpToNext,
         potions: player.potions,
+        gold: player.gold || 0,
         floorLevel: floorLevel,
         equipment: player.equipment,
         inventory: player.inventory,
@@ -93,6 +94,7 @@ function restoreProgress(player, floorLevel) {
     player.xp = save.xp;
     player.xpToNext = save.xpToNext;
     player.potions = save.potions;
+    player.gold = save.gold || 0;
     player.equipment = save.equipment;
     player.inventory = save.inventory;
     player.recalcStats();

@@ -88,10 +88,12 @@ function updateUI() {
         document.getElementById('stat-def').textContent = player.def;
         document.getElementById('stat-xp').textContent = `${player.xp}/${player.xpToNext}`;
         document.getElementById('stat-potions').textContent = player.potions;
+        document.getElementById('stat-gold').textContent = player.gold || 0;
         floorIndicator.textContent = `第 ${floorLevel} 层`;
 
-        for (const slot of ['weapon', 'helmet', 'armor', 'ring']) {
+        for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
             const el = document.getElementById(`eq-${slot}`);
+            if (!el) continue;
             const item = player.equipment[slot];
             if (item) {
                 el.textContent = item.fullName;
@@ -276,11 +278,12 @@ function updateTownUI() {
     document.getElementById('town-def').textContent = player.def;
     document.getElementById('town-xp').textContent = `${player.xp}/${player.xpToNext}`;
     document.getElementById('town-potions').textContent = player.potions;
+    document.getElementById('town-gold').textContent = player.gold || 0;
     document.getElementById('town-floor').textContent = `第${floorLevel}层`;
     document.getElementById('btn-rest').disabled = (player.hp >= player.maxHp) || restUsed;
 
     // Equipment
-    for (const slot of ['weapon', 'helmet', 'armor', 'ring']) {
+    for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
         const el = document.getElementById(`teq-${slot}`);
         const item = player.equipment[slot];
         if (item) {
@@ -341,7 +344,11 @@ function generateFloor() {
     dungeon.updateVisibility(player.x, player.y, renderer.visionCells || 10);
     renderer.render();
     updateUI();
-    addLog(`进入第 ${floorLevel} 层地牢`, '#ffd700');
+    if (floorLevel % 10 === 0) {
+        addLog(`⚠️ 第${floorLevel}层 - Boss层! 准备迎战!`, '#ff4444');
+    } else {
+        addLog(`进入第 ${floorLevel} 层地牢`, '#ffd700');
+    }
 }
 
 function movePlayer(dx, dy) {
@@ -378,7 +385,7 @@ function movePlayer(dx, dy) {
 function startCombat() {
     gameState = STATE.COMBAT;
     const monster = generateMonster(floorLevel);
-    combat = new Combat(player, monster);
+    combat = new Combat(player, monster, floorLevel);
 
     document.getElementById('combat-monster-name').innerHTML = `<span class="combat-emoji">${monster.emoji}</span> ${monster.name} <span class="combat-lv">Lv.${floorLevel}</span>`;
     document.getElementById('combat-monster-stats').textContent = `攻击:${monster.atk}  防御:${monster.def}`;
@@ -454,8 +461,10 @@ function finishCombat() {
     if (combat.playerWon) {
         const loot = combat.getLoot(floorLevel);
         const xpGained = combat.monster.xp;
+        const goldGained = combat.monster.gold || 0;
         player.gainXp(xpGained);
-        addLog(`获得 ${xpGained} 点经验`, '#ffd700');
+        player.gold += goldGained;
+        addLog(`获得 ${xpGained} 经验, ${goldGained} 金币`, '#ffd700');
         for (const item of loot) {
             player.addToInventory(item);
             addLog(`掉落: ${item.fullName}`, item.rarity.color);
