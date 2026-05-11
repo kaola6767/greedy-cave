@@ -190,21 +190,22 @@ class Renderer {
 
         // Emoji for individual look
         const emoji = data ? data.emoji : '👾';
-        ctx.font = `${CELL_SIZE - 2}px serif`;
+        const emojiFont = `${CELL_SIZE + 2}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.font = emojiFont;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(emoji, cx, my - 1 + Math.sin(this.time * 2 + cy) * 0.3);
+        ctx.fillText(emoji, cx, my);
 
         // Crown for elite
         if (isElite) {
-            ctx.font = '9px serif';
-            ctx.fillText('👑', cx, my - 8);
+            ctx.font = `12px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+            ctx.fillText('👑', cx + 4, my - 7);
         }
 
         // Boss special
         if (isBoss) {
-            ctx.font = '10px serif';
-            ctx.fillText('💀', cx, my - 9);
+            ctx.font = `12px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+            ctx.fillText('💀', cx + 5, my - 8);
         }
     }
 
