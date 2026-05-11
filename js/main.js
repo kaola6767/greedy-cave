@@ -7,6 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
+const GAME_VERSION = 'v1.5.0';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -284,7 +285,7 @@ function updateTownUI() {
     document.getElementById('town-potions').textContent = player.potions;
     const displayName = getDisplayName(getCurrentUser());
     document.getElementById('town-gold').textContent = player.gold || 0;
-    document.getElementById('town-floor').textContent = `第${floorLevel}层 | ${displayName}`;
+    document.getElementById('town-floor').textContent = `${GAME_VERSION} | 第${floorLevel}层 | ${displayName}`;
 
     // Equipment
     for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
@@ -857,11 +858,7 @@ function showLoggedOut() {
 
 // --- Init ---
 detectMobile();
-
-// Init GitHub token from old storage if available
-if (!getGitHubToken() && localStorage.getItem('greedyGHToken') === '') {
-    // prompt on first visit — user can set via town button
-}
+document.getElementById('title-version').textContent = GAME_VERSION;
 
 // Auto-login if session exists
 const savedUser = getCurrentUser();
