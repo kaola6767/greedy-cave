@@ -9,6 +9,7 @@ let isMobile = false;
 let drawerTab = null;
 let restUsed = false;
 let lastMoveTime = 0;
+let lastCombatTime = 0;
 
 // --- DOM Elements ---
 const titleScreen = document.getElementById('title-screen');
@@ -355,7 +356,7 @@ function generateFloor() {
 function movePlayer(dx, dy) {
     if (gameState !== STATE.DUNGEON) return;
     const now = performance.now();
-    if (now - lastMoveTime < 200) return;
+    if (now - lastMoveTime < 300) return;
     lastMoveTime = now;
     const nx = player.x + dx;
     const ny = player.y + dy;
@@ -415,6 +416,9 @@ function updateHpBarColor(el, ratio) {
 
 function combatAction(action) {
     if (!combat || combat.finished) return;
+    const now = performance.now();
+    if (now - lastCombatTime < 1000) return;
+    lastCombatTime = now;
 
     if (action === 'attack') {
         combat.playerAttack();
