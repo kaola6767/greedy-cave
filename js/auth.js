@@ -2,9 +2,13 @@ const AUTH_KEYS = {
     users: 'greedyUsers',
     currentUser: 'greedyCurrentUser',
     savePrefix: 'greedySave_',
-    leaderboard: 'greedyLeaderboard',
     displayNames: 'greedyDisplayNames',
 };
+
+const LB_URL = 'https://raw.githubusercontent.com/kaola6767/greedy-cave/master/leaderboard.json';
+const LB_API = 'https://api.github.com/repos/kaola6767/greedy-cave/contents/leaderboard.json';
+let leaderboardCache = null;
+let leaderboardSha = null;
 
 function getUsers() {
     try { return JSON.parse(localStorage.getItem(AUTH_KEYS.users)) || []; }
@@ -104,32 +108,78 @@ function restoreProgress(player, floorLevel) {
     return save.floorLevel || 1;
 }
 
-// --- Leaderboard ---
-function getLeaderboard() {
-    try { return JSON.parse(localStorage.getItem(AUTH_KEYS.leaderboard)) || []; }
-    catch { return []; }
+// --- Leaderboard (GitHub API) ---
+async function fetchLeaderboard() {
+    try {
+        const resp = await fetch(LB_URL + '?t=' + Date.now());
+        const data = await resp.json();
+        leaderboardCache = data;
+        return data;
+    } catch { return leaderboardCache || []; }
 }
 
-function saveLeaderboard(data) {
-    localStorage.setItem(AUTH_KEYS.leaderboard, JSON.stringify(data));
+async function getLeaderboardSha() {
+    try {
+        const token = getGitHubToken();
+        if (!token) return null;
+        const resp = await fetch(LB_API, {
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
+        });
+        const data = await resp.json();
+        leaderboardSha = data.sha;
+        return data.sha;
+    } catch { return null; }
 }
 
-function updateMaxFloor(floorLevel) {
+async function saveLeaderboardRemote(data) {
+    const token = getGitHubToken();
+    if (!token) return false;
+    try {
+        if (!leaderboardSha) await getLeaderboardSha();
+        const body = {
+            message: 'Update leaderboard',
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(data)))),
+        };
+        if (leaderboardSha) body.sha = leaderboardSha;
+        const resp = await fetch(LB_API, {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
+            body: JSON.stringify(body),
+        });
+        const result = await resp.json();
+        if (result.content) leaderboardSha = result.content.sha;
+        leaderboardCache = data;
+        return true;
+    } catch { return false; }
+}
+
+async function updateMaxFloor(floorLevel) {
     const username = getCurrentUser();
     if (!username) return;
-    const lb = getLeaderboard();
+    const lb = await fetchLeaderboard();
     const entry = lb.find(e => e.name === username);
     if (entry && floorLevel > entry.maxFloor) {
         entry.maxFloor = floorLevel;
         entry.updatedAt = Date.now();
+        await saveLeaderboardRemote(lb);
     } else if (!entry) {
         lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
+        leaderboardSha = null;
+        await saveLeaderboardRemote(lb);
     }
-    saveLeaderboard(lb);
 }
 
-function getTopLeaderboard(n) {
-    return getLeaderboard().sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
+async function getTopLeaderboard(n) {
+    const lb = await fetchLeaderboard();
+    return lb.sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
+}
+
+function getGitHubToken() {
+    return localStorage.getItem('greedyGHToken') || '';
+}
+
+function setGitHubToken(token) {
+    localStorage.setItem('greedyGHToken', token);
 }
 
 // --- Display Name ---

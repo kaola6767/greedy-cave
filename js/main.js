@@ -317,21 +317,30 @@ function updateTownUI() {
     }
 }
 
-function renderLeaderboard() {
-    const top = getTopLeaderboard(10);
-    let html = '';
-    if (top.length === 0) {
-        html = '<div style="color:#555;padding:8px;">暂无记录</div>';
-    } else {
-        const medals = ['🥇','🥈','🥉'];
-        for (let i = 0; i < top.length; i++) {
-            const e = top[i];
-            const dn = getDisplayName(e.name);
-            const medal = i < 3 ? medals[i] : `${i + 1}`;
-            html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
+async function renderLeaderboard() {
+    const list = document.getElementById('leaderboard-list');
+    list.innerHTML = '<div style="color:#555;padding:8px;">加载中...</div>';
+    try {
+        const top = await getTopLeaderboard(10);
+        let html = '';
+        if (top.length === 0) {
+            html = '<div style="color:#555;padding:8px;">暂无记录，快去冲榜吧!</div>';
+        } else {
+            const medals = ['🥇','🥈','🥉'];
+            for (let i = 0; i < top.length; i++) {
+                const e = top[i];
+                const dn = getDisplayName(e.name);
+                const medal = i < 3 ? medals[i] : `${i + 1}`;
+                html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
+            }
         }
+        if (!getGitHubToken()) {
+            html += '<div style="color:#884;padding:6px;font-size:11px;margin-top:6px;">⚠ 未设置GitHub Token，无法上传成绩</div>';
+        }
+        list.innerHTML = html;
+    } catch {
+        list.innerHTML = '<div style="color:#f44;padding:8px;">加载失败，请检查网络</div>';
     }
-    document.getElementById('leaderboard-list').innerHTML = html;
 }
 
 function renderCodex() {
@@ -677,6 +686,14 @@ document.getElementById('btn-change-name').addEventListener('click', () => {
         updateTownUI();
     }
 });
+
+// Token setup
+document.getElementById('btn-set-token')?.addEventListener('click', () => {
+    const t = prompt('输入 GitHub Token (需要 repo 权限):', getGitHubToken());
+    if (t && t.trim()) {
+        setGitHubToken(t.trim());
+    }
+});
 document.getElementById('btn-town-equip').addEventListener('click', () => {
     document.getElementById('town-leaderboard').classList.add('hidden');
     document.getElementById('town-codex').classList.add('hidden');
@@ -843,6 +860,11 @@ function showLoggedOut() {
 
 // --- Init ---
 detectMobile();
+
+// Init GitHub token from old storage if available
+if (!getGitHubToken() && localStorage.getItem('greedyGHToken') === '') {
+    // prompt on first visit — user can set via town button
+}
 
 // Auto-login if session exists
 const savedUser = getCurrentUser();
