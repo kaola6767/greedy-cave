@@ -212,25 +212,31 @@ class Dungeon {
                 this.map[y][x].visible = false;
             }
         }
+        const r2 = radius * radius;
         for (let dy = -radius; dy <= radius; dy++) {
             for (let dx = -radius; dx <= radius; dx++) {
-                if (dx * dx + dy * dy > radius * radius) continue;
+                if (dx * dx + dy * dy > r2) continue;
                 const cx = px + dx, cy = py + dy;
                 if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows) continue;
-
-                // simple LOS: check if line from player to cell passes through walls
-                let blocked = false;
-                const steps = Math.max(Math.abs(dx), Math.abs(dy));
-                for (let s = 1; s <= steps; s++) {
-                    const t = s / steps;
-                    const sx = Math.round(px + dx * t);
-                    const sy = Math.round(py + dy * t);
-                    if (sx === cx && sy === cy) break;
-                    if (this.map[sy][sx].tile === TILE.WALL) { blocked = true; break; }
-                }
-                if (!blocked) {
+                // Wall occlusion: simple check
+                if (this.map[cy][cx].tile === TILE.WALL) {
                     this.map[cy][cx].visible = true;
                     this.map[cy][cx].explored = true;
+                } else {
+                    let blocked = false;
+                    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+                    if (steps > 1) {
+                        for (let s = 1; s < steps; s++) {
+                            const t = s / steps;
+                            const sx = Math.round(px + dx * t);
+                            const sy = Math.round(py + dy * t);
+                            if (this.map[sy][sx].tile === TILE.WALL) { blocked = true; break; }
+                        }
+                    }
+                    if (!blocked) {
+                        this.map[cy][cx].visible = true;
+                        this.map[cy][cx].explored = true;
+                    }
                 }
             }
         }
