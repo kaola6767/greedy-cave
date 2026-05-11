@@ -356,7 +356,7 @@ function generateFloor() {
 function movePlayer(dx, dy) {
     if (gameState !== STATE.DUNGEON) return;
     const now = performance.now();
-    if (now - lastMoveTime < 300) return;
+    if (now - lastMoveTime < 150) return;
     lastMoveTime = now;
     const nx = player.x + dx;
     const ny = player.y + dy;
