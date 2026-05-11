@@ -117,67 +117,61 @@ function base64Encode(str) {
     return btoa(binary);
 }
 
-async function fetchLeaderboard() {
+// Fetch data + SHA in one API call (with raw fallback)
+async function fetchLeaderboardWithSha() {
+    const token = getGitHubToken();
+    // Try API first (gives us SHA for writes)
+    if (token) {
+        try {
+            const resp = await fetch(LB_API, {
+                mode: 'cors',
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
+            });
+            if (resp.ok) {
+                const apiData = await resp.json();
+                leaderboardSha = apiData.sha;
+                const data = JSON.parse(atob(apiData.content.replace(/\n/g, '')));
+                leaderboardCache = data;
+                return { data, sha: apiData.sha };
+            }
+        } catch (e) { console.log('API get failed:', e.message); }
+    }
+    // Fallback: raw URL (read-only, no SHA)
     try {
         const resp = await fetch(LB_URL + '?t=' + Date.now());
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         leaderboardCache = data;
-        return data;
+        return { data, sha: null };
     } catch (e) {
-        console.log('Leaderboard fetch failed:', e.message);
-        return leaderboardCache || [];
-    }
-}
-
-async function getLeaderboardSha() {
-    try {
-        const token = getGitHubToken();
-        if (!token) return null;
-        const resp = await fetch(LB_API, {
-            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' },
-        });
-        const data = await resp.json();
-        if (data.sha) {
-            leaderboardSha = data.sha;
-            return data.sha;
-        }
-        console.log('getSha response:', data);
-        return null;
-    } catch (e) {
-        console.log('getSha error:', e.message);
-        return null;
+        return { data: leaderboardCache || [], sha: null };
     }
 }
 
 async function saveLeaderboardRemote(data) {
     const token = getGitHubToken();
-    if (!token) { console.log('No GitHub token set'); return { ok: false, msg: '未设置Token' }; }
+    if (!token) return { ok: false, msg: '未设置Token' };
     try {
-        if (!leaderboardSha) await getLeaderboardSha();
+        if (!leaderboardSha) {
+            const { sha } = await fetchLeaderboardWithSha();
+            if (!sha) return { ok: false, msg: '无法获取文件SHA' };
+        }
         const encoded = base64Encode(JSON.stringify(data, null, 2));
-        const body = {
-            message: 'Update leaderboard',
-            content: encoded,
-        };
-        if (leaderboardSha) body.sha = leaderboardSha;
+        const body = { message: 'Update leaderboard', content: encoded, sha: leaderboardSha };
         const resp = await fetch(LB_API, {
             method: 'PUT',
+            mode: 'cors',
             headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
             body: JSON.stringify(body),
         });
         const result = await resp.json();
         if (resp.ok) {
-            if (result.content && result.content.sha) leaderboardSha = result.content.sha;
+            leaderboardSha = result.content?.sha;
             leaderboardCache = data;
-            console.log('Leaderboard saved successfully');
             return { ok: true };
         }
-        console.log('Save failed:', result);
-        leaderboardSha = null; // reset sha on failure
+        leaderboardSha = null;
         return { ok: false, msg: result.message || 'API错误' };
     } catch (e) {
-        console.log('Save error:', e.message);
         leaderboardSha = null;
         return { ok: false, msg: e.message };
     }
@@ -186,7 +180,7 @@ async function saveLeaderboardRemote(data) {
 async function updateMaxFloor(floorLevel) {
     const username = getCurrentUser();
     if (!username) return { ok: false, msg: '未登录' };
-    const lb = await fetchLeaderboard();
+    const { data: lb } = await fetchLeaderboardWithSha();
     const entry = lb.find(e => e.name === username);
     if (entry && floorLevel > entry.maxFloor) {
         entry.maxFloor = floorLevel;
@@ -201,7 +195,7 @@ async function updateMaxFloor(floorLevel) {
 }
 
 async function getTopLeaderboard(n) {
-    const lb = await fetchLeaderboard();
+    const { data: lb } = await fetchLeaderboardWithSha();
     return lb.sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
 }
 
