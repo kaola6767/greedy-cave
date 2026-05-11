@@ -275,7 +275,7 @@ body {
     cursor: not-allowed;
 }
 
-#town-equipment {
+#town-equipment, .town-panel {
     background: #111;
     border: 1px solid #333;
     padding: 14px;
@@ -285,7 +285,7 @@ body {
     overflow-y: auto;
 }
 
-#town-equipment h3 {
+#town-equipment h3, .town-panel h3 {
     color: #ffd700;
     font-size: 14px;
     margin-bottom: 6px;
@@ -294,6 +294,47 @@ body {
 #town-inv-list {
     max-height: 150px;
     overflow-y: auto;
+}
+
+/* Leaderboard */
+.lb-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #222;
+    font-size: 14px;
+}
+
+.lb-rank {
+    width: 32px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.lb-name {
+    flex: 1;
+    color: #ddd;
+}
+
+.lb-floor {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* Codex */
+.codex-list {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 2;
+}
+
+.codex-section {
+    padding: 4px 0;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+.codex-section strong {
+    color: #ccc;
 }
 
 /* Return to town button (dungeon) */

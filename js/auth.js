@@ -2,6 +2,8 @@ const AUTH_KEYS = {
     users: 'greedyUsers',
     currentUser: 'greedyCurrentUser',
     savePrefix: 'greedySave_',
+    leaderboard: 'greedyLeaderboard',
+    displayNames: 'greedyDisplayNames',
 };
 
 function getUsers() {
@@ -100,4 +102,49 @@ function restoreProgress(player, floorLevel) {
     player.recalcStats();
     player.hp = player.maxHp;
     return save.floorLevel || 1;
+}
+
+// --- Leaderboard ---
+function getLeaderboard() {
+    try { return JSON.parse(localStorage.getItem(AUTH_KEYS.leaderboard)) || []; }
+    catch { return []; }
+}
+
+function saveLeaderboard(data) {
+    localStorage.setItem(AUTH_KEYS.leaderboard, JSON.stringify(data));
+}
+
+function updateMaxFloor(floorLevel) {
+    const username = getCurrentUser();
+    if (!username) return;
+    const lb = getLeaderboard();
+    const entry = lb.find(e => e.name === username);
+    if (entry && floorLevel > entry.maxFloor) {
+        entry.maxFloor = floorLevel;
+        entry.updatedAt = Date.now();
+    } else if (!entry) {
+        lb.push({ name: username, maxFloor: floorLevel, updatedAt: Date.now() });
+    }
+    saveLeaderboard(lb);
+}
+
+function getTopLeaderboard(n) {
+    return getLeaderboard().sort((a, b) => b.maxFloor - a.maxFloor).slice(0, n);
+}
+
+// --- Display Name ---
+function getDisplayNames() {
+    try { return JSON.parse(localStorage.getItem(AUTH_KEYS.displayNames)) || {}; }
+    catch { return {}; }
+}
+
+function getDisplayName(username) {
+    const names = getDisplayNames();
+    return names[username] || username;
+}
+
+function setDisplayName(username, displayName) {
+    const names = getDisplayNames();
+    names[username] = displayName;
+    localStorage.setItem(AUTH_KEYS.displayNames, JSON.stringify(names));
 }

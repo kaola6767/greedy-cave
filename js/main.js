@@ -282,9 +282,9 @@ function updateTownUI() {
     document.getElementById('town-def').textContent = player.def;
     document.getElementById('town-xp').textContent = `${player.xp}/${player.xpToNext}`;
     document.getElementById('town-potions').textContent = player.potions;
+    const displayName = getDisplayName(getCurrentUser());
     document.getElementById('town-gold').textContent = player.gold || 0;
-    document.getElementById('town-floor').textContent = `第${floorLevel}层`;
-    document.getElementById('btn-rest').disabled = (player.hp >= player.maxHp) || restUsed;
+    document.getElementById('town-floor').textContent = `第${floorLevel}层 | ${displayName}`;
 
     // Equipment
     for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
@@ -315,6 +315,43 @@ function updateTownUI() {
             invList.appendChild(div);
         }
     }
+}
+
+function renderLeaderboard() {
+    const top = getTopLeaderboard(10);
+    let html = '';
+    if (top.length === 0) {
+        html = '<div style="color:#555;padding:8px;">暂无记录</div>';
+    } else {
+        const medals = ['🥇','🥈','🥉'];
+        for (let i = 0; i < top.length; i++) {
+            const e = top[i];
+            const dn = getDisplayName(e.name);
+            const medal = i < 3 ? medals[i] : `${i + 1}`;
+            html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
+        }
+    }
+    document.getElementById('leaderboard-list').innerHTML = html;
+}
+
+function renderCodex() {
+    let html = '<div class="codex-list">';
+    const types = [
+        { label: '武器', items: WEAPON_NAMES },
+        { label: '头盔', items: HELMET_NAMES },
+        { label: '铠甲', items: ARMOR_NAMES },
+        { label: '护手', items: GLOVES_NAMES },
+        { label: '靴子', items: BOOTS_NAMES },
+        { label: '戒指', items: RING_NAMES },
+        { label: '项链', items: NECKLACE_NAMES },
+    ];
+    for (const t of types) {
+        html += `<div class="codex-section"><strong>${t.label}</strong>: ${t.items.join(' / ')}</div>`;
+    }
+    html += '<div class="codex-section"><strong>品质</strong>: 普通 | 稀有 | 黄金 | 史诗 | 传说</div>';
+    html += '<div class="codex-section"><strong>传说词缀</strong>: 处决者 不死鸟 时空裂隙 吸血之王 金刚不坏 雷霆之怒</div>';
+    html += '</div>';
+    document.getElementById('codex-content').innerHTML = html;
 }
 
 function enterDungeon() {
@@ -540,6 +577,7 @@ function nextFloor() {
     floorLevel++;
     gameState = STATE.DUNGEON;
     saveProgress(player, floorLevel);
+    updateMaxFloor(floorLevel);
     generateFloor();
 }
 
@@ -615,16 +653,33 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 
 // Town buttons
 document.getElementById('btn-enter-dungeon').addEventListener('click', enterDungeon);
-document.getElementById('btn-rest').addEventListener('click', () => {
-    player.hp = player.maxHp;
-    restUsed = true;
-    updateTownUI();
+// Leaderboard
+document.getElementById('btn-town-leaderboard').addEventListener('click', () => {
+    document.getElementById('town-codex').classList.add('hidden');
+    document.getElementById('town-equipment').classList.add('hidden');
+    const panel = document.getElementById('town-leaderboard');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) renderLeaderboard();
 });
-document.getElementById('btn-supply').addEventListener('click', () => {
-    player.potions += 3;
-    updateTownUI();
+document.getElementById('btn-town-codex').addEventListener('click', () => {
+    document.getElementById('town-leaderboard').classList.add('hidden');
+    document.getElementById('town-equipment').classList.add('hidden');
+    const panel = document.getElementById('town-codex');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) renderCodex();
+});
+document.getElementById('btn-change-name').addEventListener('click', () => {
+    const username = getCurrentUser();
+    const current = getDisplayName(username);
+    const newName = prompt('输入新昵称:', current);
+    if (newName && newName.trim()) {
+        setDisplayName(username, newName.trim());
+        updateTownUI();
+    }
 });
 document.getElementById('btn-town-equip').addEventListener('click', () => {
+    document.getElementById('town-leaderboard').classList.add('hidden');
+    document.getElementById('town-codex').classList.add('hidden');
     document.getElementById('town-equipment').classList.toggle('hidden');
 });
 document.getElementById('btn-town-logout').addEventListener('click', () => {
@@ -772,7 +827,7 @@ dpad.addEventListener('touchstart', (e) => e.preventDefault());
 function showLoggedIn(username) {
     document.getElementById('auth-section').classList.add('hidden');
     document.getElementById('logged-section').classList.remove('hidden');
-    document.getElementById('welcome-msg').textContent = `欢迎，${username}!`;
+    document.getElementById('welcome-msg').textContent = `欢迎，${getDisplayName(username)}!`;
     document.getElementById('btn-continue').classList.toggle('hidden', !hasSave(username));
 }
 
