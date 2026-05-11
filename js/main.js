@@ -47,10 +47,10 @@ function resizeCanvas() {
     detectMobile();
     const main = document.getElementById('game-main');
     if (isMobile) {
-        const w = main.clientWidth;
-        const h = main.clientHeight;
-        canvas.width = w;
-        canvas.height = h;
+        const w = main.clientWidth || window.innerWidth;
+        const h = main.clientHeight || window.innerHeight - 80;
+        canvas.width = Math.max(w, 300);
+        canvas.height = Math.max(h, 300);
     } else {
         canvas.width = 800;
         canvas.height = 560;
@@ -245,9 +245,14 @@ function startGame() {
     floorLevel = 1;
     titleScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
-    resizeCanvas();
-    addLog('你进入了地牢...', '#ffd700');
-    generateFloor();
+    // Defer canvas setup until layout completes (critical for mobile)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            resizeCanvas();
+            addLog('你进入了地牢...', '#ffd700');
+            generateFloor();
+        });
+    });
 }
 
 function generateFloor() {
