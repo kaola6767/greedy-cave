@@ -170,67 +170,194 @@ class Renderer {
 
     drawMonster(cx, cy, data) {
         const ctx = this.ctx;
-        const bob = Math.sin(this.time * 3 + cx) * 1.5;
+        const bob = Math.sin(this.time * 3 + cx) * 1.2;
         const my = cy + bob;
         const isElite = data && data.isElite;
         const isBoss = data && data.isBoss;
+        const name = data ? data.name : '史莱姆';
+        const s = isBoss ? 1.2 : isElite ? 1.05 : 0.9;
 
         // Dark aura
-        const auraColor = isBoss ? 'rgba(255,0,0,0.45)' : isElite ? 'rgba(255,140,0,0.35)' : 'rgba(180,20,20,0.25)';
-        const aura = ctx.createRadialGradient(cx, my, 2, cx, my, isBoss ? 14 : 11);
+        const auraColor = isBoss ? 'rgba(255,0,0,0.45)' : isElite ? 'rgba(255,140,0,0.35)' : 'rgba(180,20,20,0.2)';
+        const auraR = isBoss ? 14 : isElite ? 12 : 10;
+        const aura = ctx.createRadialGradient(cx, my, 1, cx, my, auraR);
         aura.addColorStop(0, auraColor);
-        aura.addColorStop(0.6, 'rgba(20,5,5,0.1)');
         aura.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = aura;
-        ctx.beginPath(); ctx.arc(cx, my, isBoss ? 14 : 11, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, my, auraR, 0, Math.PI * 2); ctx.fill();
 
-        // Shadow under
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.ellipse(cx, my + 7, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(cx, my + 6, 5 * s, 1.5 * s, 0, 0, Math.PI * 2); ctx.fill();
 
-        // Color-coded body based on name hash
-        const name = data ? data.name : '?';
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
-        const hue = (hash & 0xFF) % 360;
-        const bodyColor = `hsl(${hue}, 50%, 35%)`;
-        const lightColor = `hsl(${hue}, 60%, 50%)`;
+        ctx.save();
+        ctx.translate(cx, my);
+        ctx.scale(s, s);
 
-        // Body circle
-        ctx.fillStyle = bodyColor;
-        ctx.beginPath();
-        ctx.arc(cx, my, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = lightColor;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        // Draw distinct body per type
+        if (name.includes('史莱姆')) this.drawSlime(ctx);
+        else if (name.includes('骷髅')) this.drawSkeleton(ctx);
+        else if (name.includes('哥布林')) this.drawGoblin(ctx);
+        else if (name.includes('蜘蛛')) this.drawSpider(ctx);
+        else if (name.includes('石像鬼')) this.drawGargoyle(ctx);
+        else if (name.includes('法师') || name.includes('法王')) this.drawMage(ctx);
+        else if (name.includes('食人魔')) this.drawOgre(ctx);
+        else if (name.includes('恶魔')) this.drawDemon(ctx);
+        else if (name.includes('龙')) this.drawDragon(ctx);
+        else if (name.includes('史莱姆')) this.drawSlime(ctx);
+        else this.drawSlime(ctx); // fallback
 
-        // Emoji icon
-        const emoji = data ? data.emoji : '👾';
-        ctx.font = `${CELL_SIZE}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(emoji, cx, my);
+        ctx.restore();
 
-        // Elite: golden ring + crown
+        // Elite/Boss markers
         if (isElite) {
             ctx.strokeStyle = '#FFD700';
             ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(cx, my, 8, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, my, 8 * s, 0, Math.PI * 2); ctx.stroke();
             ctx.fillStyle = '#FFD700';
-            ctx.font = 'bold 8px sans-serif';
-            ctx.fillText('★', cx + 6, my - 5);
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('★', cx + 7, my - 6);
         }
-
-        // Boss: red ring + skull mark
         if (isBoss) {
             ctx.strokeStyle = '#FF0000';
             ctx.lineWidth = 2.5;
-            ctx.beginPath(); ctx.arc(cx, my, 9, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, my, 9 * s, 0, Math.PI * 2); ctx.stroke();
             ctx.fillStyle = '#FF0000';
-            ctx.font = 'bold 9px sans-serif';
-            ctx.fillText('☠', cx + 6, my - 6);
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('☠', cx + 7, my - 7);
         }
+    }
+
+    drawSlime(ctx) {
+        ctx.fillStyle = '#4a8c3f';
+        ctx.beginPath(); ctx.ellipse(0, 2, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#6ab85a';
+        ctx.beginPath(); ctx.ellipse(0, -1, 4, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-2, -2, 1, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(2, -2, 1, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(-2, -2, 0.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(2, -2, 0.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawSkeleton(ctx) {
+        ctx.fillStyle = '#d4c8a0';
+        ctx.beginPath(); ctx.arc(0, -3, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(0, -3.5, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(-1, -4, 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1, -4, 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#d4c8a0'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(-3, 3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(3, 3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(-2, 7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(2, 7); ctx.stroke();
+    }
+
+    drawGoblin(ctx) {
+        ctx.fillStyle = '#6b8c42';
+        ctx.beginPath(); ctx.arc(0, -2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5a7a35';
+        ctx.fillRect(-2.5, 1, 5, 4);
+        ctx.fillStyle = '#6b8c42'; ctx.beginPath();
+        ctx.moveTo(-3, -3); ctx.lineTo(-5, -5); ctx.lineTo(-3, -1); ctx.fill();
+        ctx.moveTo(3, -3); ctx.lineTo(5, -5); ctx.lineTo(3, -1); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-1.2, -2.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.2, -2.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#222'; ctx.beginPath();
+        ctx.arc(-1.2, -2.5, 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.arc(1.2, -2.5, 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawSpider(ctx) {
+        ctx.fillStyle = '#3a2040';
+        ctx.beginPath(); ctx.ellipse(0, 1, 3.5, 3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5a3060';
+        ctx.beginPath(); ctx.arc(0, -1, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#3a2040'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+        const legs = [[-3,-1,-5,-3],[-2,1,-5,0],[2,1,5,0],[3,-1,5,-3],[-3,2,-5,4],[-2,3,-4,5],[2,3,4,5],[3,2,5,4]];
+        for (const [x1,y1,x2,y2] of legs) { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+        ctx.fillStyle = '#f00'; ctx.beginPath();
+        ctx.arc(-1.5, -1.5, 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.arc(1.5, -1.5, 0.7, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawGargoyle(ctx) {
+        ctx.fillStyle = '#6a6a7a';
+        ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-5, -2); ctx.lineTo(-3, 4);
+        ctx.lineTo(0, 5); ctx.lineTo(3, 4); ctx.lineTo(5, -2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#8a8a9a';
+        ctx.beginPath(); ctx.arc(0, -2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath(); ctx.arc(-1.2, -2.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.2, -2.5, 0.8, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawMage(ctx) {
+        ctx.fillStyle = '#3a2a5a';
+        ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(-5, -1); ctx.lineTo(0, -3);
+        ctx.lineTo(5, -1); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#5a4a7a';
+        ctx.fillRect(-3, -2, 6, 6);
+        ctx.fillStyle = '#d4c8a0';
+        ctx.beginPath(); ctx.arc(0, -3, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath(); ctx.arc(-1, -3.5, 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1, -3.5, 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#aaf';
+        ctx.beginPath(); ctx.arc(3, -1, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawOgre(ctx) {
+        ctx.fillStyle = '#5a4020';
+        ctx.fillRect(-3, -1, 6, 6);
+        ctx.fillStyle = '#7a6040';
+        ctx.beginPath(); ctx.arc(0, -3, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-1.5, -3.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.5, -3.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(-1.5, -3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.5, -3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f44'; ctx.beginPath();
+        ctx.ellipse(0, -1, 2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawDemon(ctx) {
+        ctx.fillStyle = '#6a2020';
+        ctx.fillRect(-3, -1, 6, 6);
+        ctx.fillStyle = '#8a3030';
+        ctx.beginPath(); ctx.arc(0, -3, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f00';
+        ctx.beginPath(); ctx.moveTo(-2, -5); ctx.lineTo(-4, -8); ctx.lineTo(0, -6); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(2, -5); ctx.lineTo(4, -8); ctx.lineTo(0, -6); ctx.fill();
+        ctx.fillStyle = '#f80';
+        ctx.beginPath(); ctx.arc(-1.2, -3.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.2, -3.5, 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(-1.2, -3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.2, -3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawDragon(ctx) {
+        ctx.fillStyle = '#2a6030';
+        ctx.beginPath(); ctx.ellipse(0, 1, 4, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3a8040';
+        ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-3, 0); ctx.lineTo(0, -1); ctx.lineTo(3, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f80';
+        ctx.beginPath(); ctx.arc(-1.5, -2, 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(1.5, -2, 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#3a8040'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-4, -3); ctx.lineTo(-6, -5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(4, -3); ctx.lineTo(6, -5); ctx.stroke();
+        ctx.fillStyle = '#f44';
+        ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(-1, -6); ctx.lineTo(1, -6); ctx.closePath(); ctx.fill();
     }
 
     drawPlayerCharacter(px, py) {
