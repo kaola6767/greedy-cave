@@ -14,16 +14,18 @@ class Dungeon {
         this.cols = MAP_COLS;
         this.rows = MAP_ROWS;
         this.map = [];
-        this.entities = []; // { x, y, type }
         this.startX = 0;
         this.startY = 0;
         this.exitX = 0;
         this.exitY = 0;
+        this.totalMonsters = 0;
+        this.monstersKilled = 0;
+        this.exitPlaced = false;
+        this.isBossFloor = (floorLevel % 10 === 0);
         this.generate();
     }
 
     generate() {
-        // init map with walls
         this.map = [];
         for (let y = 0; y < this.rows; y++) {
             this.map[y] = [];
@@ -32,12 +34,93 @@ class Dungeon {
             }
         }
 
-        // BSP tree
-        this.root = new BSPNode(1, 1, this.cols - 2, this.rows - 2);
-        this.splitNode(this.root, 6);
-        this.createRooms(this.root);
-        this.connectRooms(this.root);
-        this.placeEntities();
+        if (this.isBossFloor) {
+            this.generateBossRoom();
+        } else {
+            this.root = new BSPNode(1, 1, this.cols - 2, this.rows - 2);
+            this.splitNode(this.root, 6);
+            this.createRooms(this.root);
+            this.connectRooms(this.root);
+            this.placeEntities();
+        }
+    }
+
+    generateBossRoom() {
+        // Single large room taking most of the map
+        const margin = 2;
+        const rx = margin;
+        const ry = margin;
+        const rw = this.cols - margin * 2;
+        const rh = this.rows - margin * 2;
+
+        for (let y = ry; y < ry + rh; y++) {
+            for (let x = rx; x < rx + rw; x++) {
+                this.map[y][x].tile = TILE.FLOOR;
+            }
+        }
+
+        // Start at bottom-left area
+        this.startX = rx + 3;
+        this.startY = ry + rh - 4;
+
+        // Place boss in center
+        const bx = rx + Math.floor(rw / 2);
+        const by = ry + Math.floor(rh / 2);
+        this.map[by][bx].entity = ENTITY.MONSTER;
+        this.map[by][bx].monsterData = generateMonster(this.floorLevel);
+        this.totalMonsters = 1;
+
+        // Place chest in corner
+        const isGoldChest = Math.random() < 0.30;
+        const chestType = isGoldChest ? ENTITY.GOLD_CHEST : ENTITY.SILVER_CHEST;
+        this.map[ry + 3][rx + 3].entity = chestType;
+
+        // Place potions
+        const potionCount = 2 + rand(0, 2);
+        const corners = [
+            [rx + 5, ry + rh - 5], [rx + rw - 5, ry + 3],
+            [rx + rw - 5, ry + rh - 5], [rx + 5, ry + 5],
+        ];
+        for (let i = 0; i < Math.min(potionCount, corners.length); i++) {
+            const [px, py] = corners[i];
+            if (this.map[py][px].entity === ENTITY.NONE) {
+                this.map[py][px].entity = ENTITY.POTION;
+            }
+        }
+    }
+
+    onMonsterKilled() {
+        this.monstersKilled++;
+        if (this.isBossFloor) {
+            // Boss killed — place exit
+            const rx = 2, ry = 2, rw = this.cols - 4, rh = this.rows - 4;
+            this.exitX = rx + rw - 5;
+            this.exitY = ry + 3;
+            this.map[this.exitY][this.exitX].entity = ENTITY.EXIT;
+            this.exitPlaced = true;
+        } else if (!this.exitPlaced && this.totalMonsters > 0) {
+            const pct = this.monstersKilled / this.totalMonsters;
+            if (pct >= 0.60) {
+                this.placeExit();
+            }
+        }
+    }
+
+    getKillPct() {
+        if (this.totalMonsters === 0) return 100;
+        return Math.round(this.monstersKilled / this.totalMonsters * 100);
+    }
+
+    placeExit() {
+        const allRooms = this.getAllRooms(this.root);
+        if (allRooms.length === 0) return;
+        const exitRoom = allRooms[allRooms.length - 1];
+        this.exitX = exitRoom.x + Math.floor(exitRoom.w / 2);
+        this.exitY = exitRoom.y + Math.floor(exitRoom.h / 2);
+        if (this.map[this.exitY][this.exitX].entity === ENTITY.NONE) {
+            this.map[this.exitY][this.exitX].entity = ENTITY.EXIT;
+            this.exitPlaced = true;
+        }
     }
 
     splitNode(node, depth) {
@@ -104,7 +187,6 @@ class Dungeon {
         const x2 = r2.x + Math.floor(r2.w / 2);
         const y2 = r2.y + Math.floor(r2.h / 2);
 
-        // L-shaped corridor
         if (Math.random() > 0.5) {
             this.hCorridor(x1, x2, y1);
             this.vCorridor(y1, y2, x2);
@@ -154,11 +236,10 @@ class Dungeon {
         this.startX = startRoom.x + Math.floor(startRoom.w / 2);
         this.startY = startRoom.y + Math.floor(startRoom.h / 2);
 
-        // exit in last room
+        // Save exit position (exit not placed until kill condition met)
         const exitRoom = allRooms[allRooms.length - 1];
         this.exitX = exitRoom.x + Math.floor(exitRoom.w / 2);
         this.exitY = exitRoom.y + Math.floor(exitRoom.h / 2);
-        this.map[this.exitY][this.exitX].entity = ENTITY.EXIT;
 
         // monsters, chests, potions in other rooms
         const monsterCount = 5 + this.floorLevel * 2;
@@ -173,6 +254,7 @@ class Dungeon {
         const placeInRoom = (room) => `${room.x},${room.y}`;
 
         const placeRandom = (type, count, genData) => {
+            let placedCount = 0;
             for (let i = 0; i < count; i++) {
                 const room = pick(midRooms);
                 if (!room) continue;
@@ -183,14 +265,16 @@ class Dungeon {
                 if (this.map[ey][ex].entity !== ENTITY.NONE) continue;
                 this.map[ey][ex].entity = type;
                 if (genData) this.map[ey][ex].monsterData = genData();
+                if (type === ENTITY.MONSTER) placedCount++;
                 if (type === ENTITY.SILVER_CHEST || type === ENTITY.GOLD_CHEST || type === ENTITY.EXIT) placed.add(key);
             }
+            return placedCount;
         };
 
-        placeRandom(ENTITY.MONSTER, Math.min(monsterCount, midRooms.length * 2), () => generateMonster(this.floorLevel));
+        this.totalMonsters += placeRandom(ENTITY.MONSTER, Math.min(monsterCount, midRooms.length * 2), () => generateMonster(this.floorLevel));
         placeRandom(chestType, 1);
         placeRandom(ENTITY.POTION, potionCount);
-        placeRandom(ENTITY.MONSTER, 2, () => generateMonster(this.floorLevel));
+        this.totalMonsters += placeRandom(ENTITY.MONSTER, 2, () => generateMonster(this.floorLevel));
     }
 
     getTile(x, y) {
@@ -200,6 +284,8 @@ class Dungeon {
 
     isWalkable(x, y) {
         const cell = this.getTile(x, y);
+        // Exit is only walkable after it's placed
+        if (cell.entity === ENTITY.EXIT && !this.exitPlaced) return false;
         return cell.tile !== TILE.WALL;
     }
 
@@ -220,7 +306,6 @@ class Dungeon {
                 if (dx * dx + dy * dy > r2) continue;
                 const cx = px + dx, cy = py + dy;
                 if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows) continue;
-                // Wall occlusion: simple check
                 if (this.map[cy][cx].tile === TILE.WALL) {
                     this.map[cy][cx].visible = true;
                     this.map[cy][cx].explored = true;

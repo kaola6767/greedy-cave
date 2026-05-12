@@ -203,7 +203,7 @@ class Renderer {
         const isElite = data && data.isElite;
         const isBoss = data && data.isBoss;
         const name = data ? data.name : '史莱姆';
-        const s = isBoss ? 1.2 : isElite ? 1.05 : 0.9;
+        const s = isBoss ? 5.0 : isElite ? 2.0 : 1.5;
 
         // Dark aura
         const auraColor = isBoss ? 'rgba(255,0,0,0.45)' : isElite ? 'rgba(255,140,0,0.35)' : 'rgba(180,20,20,0.2)';

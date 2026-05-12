@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.02';
+const GAME_VERSION = 'v2.03';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -93,7 +93,15 @@ function updateUI() {
     document.getElementById('stat-xp').textContent = `${player.xp}/${player.xpToNext}`;
     document.getElementById('stat-potions').textContent = player.potions;
     document.getElementById('stat-gold').textContent = player.gold || 0;
-    floorIndicator.textContent = `第 ${floorLevel} 层`;
+    if (dungeon && gameState === STATE.DUNGEON && !dungeon.isBossFloor) {
+        const pct = dungeon.getKillPct();
+        const exitLabel = dungeon.exitPlaced ? ' ✅出口已开' : '';
+        floorIndicator.textContent = `第 ${floorLevel} 层 | 击杀 ${pct}%${exitLabel}`;
+    } else if (dungeon && dungeon.isBossFloor) {
+        floorIndicator.textContent = `第 ${floorLevel} 层 | BOSS层`;
+    } else {
+        floorIndicator.textContent = `第 ${floorLevel} 层`;
+    }
 
     for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
         const el = document.getElementById(`eq-${slot}`);
@@ -429,9 +437,9 @@ function generateFloor() {
     renderer.render();
     updateUI();
     if (floorLevel % 10 === 0) {
-        addLog(`⚠️ 第${floorLevel}层 - Boss层! 准备迎战!`, '#ff4444');
+        addLog(`⚠️ 第${floorLevel}层 - Boss层! 击败Boss后出口开启!`, '#ff4444');
     } else {
-        addLog(`进入第 ${floorLevel} 层地牢`, '#ffd700');
+        addLog(`进入第 ${floorLevel} 层 (需击杀60%怪物开启出口)`, '#ffd700');
     }
 }
 
@@ -635,6 +643,14 @@ function finishCombat() {
     const wasFled = combat.fled;
 
     if (combat.playerWon) {
+        dungeon.onMonsterKilled();
+        if (!dungeon.isBossFloor && dungeon.exitPlaced) {
+            const pct = dungeon.getKillPct();
+            if (pct >= 60) addLog(`🚪 已击杀${pct}%怪物，出口已开启!`, '#00ff88');
+        }
+        if (dungeon.isBossFloor && dungeon.exitPlaced) {
+            addLog('🚪 Boss已击败，出口已开启!', '#00ff88');
+        }
         const loot = combat.getLoot(floorLevel);
         const xpGained = combat.monster.xp;
         const goldGained = combat.monster.gold || 0;
@@ -686,9 +702,46 @@ function showVictory() {
 
 function showDeath() {
     gameState = STATE.DEAD;
+
+    // Death penalty: back to floor 1, lose 20% equipment
+    const allItems = [];
+    // Collect all equipped items
+    for (const slot of Object.keys(player.equipment)) {
+        if (player.equipment[slot]) allItems.push({ slot, item: player.equipment[slot] });
+    }
+    // Collect inventory indices
+    for (let i = 0; i < player.inventory.length; i++) {
+        allItems.push({ slot: null, invIdx: i, item: player.inventory[i] });
+    }
+
+    const loseCount = Math.max(1, Math.floor(allItems.length * 0.20));
+    const lostItems = [];
+    const shuffled = allItems.sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < Math.min(loseCount, shuffled.length); i++) {
+        const entry = shuffled[i];
+        lostItems.push(entry.item.fullName);
+        if (entry.slot) {
+            player.equipment[entry.slot] = null;
+        } else if (entry.invIdx !== undefined) {
+            // Mark for removal (will be cleaned below)
+            shuffled[i]._remove = true;
+        }
+    }
+
+    // Rebuild inventory without lost items
+    player.inventory = player.inventory.filter((item, idx) => {
+        return !lostItems.some((_, i) => shuffled[i].invIdx === idx && shuffled[i]._remove);
+    });
+
+    player.recalcStats();
+    floorLevel = 1;
+    saveProgress(player, floorLevel);
+
+    const lostStr = lostItems.length > 0 ? `\n装备掉落: ${lostItems.join(', ')}` : '';
+    document.getElementById('dead-info').textContent = `你回到了第1层，损失了20%装备${lostStr}`;
     document.getElementById('dead-floor').textContent = floorLevel;
     deadModal.classList.remove('hidden');
-    // Equipment and level are kept; only current floor progress is lost
 }
 
 function nextFloor() {
