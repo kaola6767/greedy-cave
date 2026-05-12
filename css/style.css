@@ -1135,3 +1135,45 @@ body {
     background: #1a1a1a;
     color: #666;
 }
+
+/* --- Shop --- */
+.shop-section {
+    padding: 8px 0;
+    border-bottom: 1px solid #222;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.shop-section strong {
+    color: #ddd;
+}
+
+.blessing-cards {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.blessing-card {
+    background: #1a1a2e;
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 10px;
+    width: calc(50% - 3px);
+    text-align: center;
+    cursor: default;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.blessing-card.active {
+    border-color: #ffd700;
+    background: #222240;
+}
+
+.bc-icon { font-size: 24px; margin-bottom: 2px; }
+.bc-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+.bc-desc { font-size: 11px; color: #888; margin-bottom: 4px; }
+.bc-price { font-size: 12px; color: #ffd700; margin-bottom: 4px; }
+.bc-active { font-size: 11px; color: #ffd700; font-weight: bold; }

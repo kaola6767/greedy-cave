@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.05';
+const GAME_VERSION = 'v2.06';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -15,6 +15,7 @@ let heldDir = null;
 let moveInterval = null;
 let prevPx = 0;
 let prevPy = 0;
+let potionsBoughtThisVisit = 0;
 
 // --- DOM Elements ---
 const titleScreen = document.getElementById('title-screen');
@@ -350,6 +351,98 @@ function updateTownUI() {
             invList.appendChild(div);
         }
     }
+    updateShopUI();
+}
+
+// --- Shop ---
+const BLESSING_DATA = {
+    war:  { name:'战意', icon:'⚔️', desc:'ATK +15%', price:350, color:'#ff6666' },
+    iron: { name:'铁壁', icon:'🛡️', desc:'DEF +15%', price:350, color:'#8888ff' },
+    life: { name:'生命', icon:'❤️', desc:'maxHP +20%', price:450, color:'#ff8888' },
+    luck: { name:'幸运', icon:'🍀', desc:'掉落率 +15%', price:300, color:'#88ff88' },
+};
+
+function updateShopUI() {
+    const el = document.getElementById('town-shop');
+    if (!el || el.classList.contains('hidden')) return;
+    let html = '<h3>🛒 商店</h3>';
+
+    // Potions
+    html += `<div class="shop-section"><strong>🧪 药水</strong> (${player.potions}/${player.maxPotions}) — 30💰`;
+    if (player.potions >= player.maxPotions) {
+        html += ` <span style="color:#888">已达上限</span>`;
+    } else if (potionsBoughtThisVisit >= 5) {
+        html += ` <span style="color:#888">本次已购5瓶</span>`;
+    } else if (player.gold < 30) {
+        html += ` <span style="color:#888">金币不足</span>`;
+    } else {
+        html += ` <button id="btn-buy-potion" class="btn-small">购买</button>`;
+    }
+    html += '</div>';
+
+    // Mystery box
+    html += `<div class="shop-section"><strong>📦 神秘宝箱</strong> — 250💰 (至少稀有)
+        ${player.gold >= 250 ? `<button id="btn-buy-box" class="btn-small">购买</button>` : '<span style="color:#888">金币不足</span>'}
+    </div>`;
+
+    // Blessings
+    html += '<div class="shop-section"><strong>✨ 祝福</strong> (同时仅1个生效)</div>';
+    html += '<div class="blessing-cards">';
+    for (const [key, b] of Object.entries(BLESSING_DATA)) {
+        const active = player.currentBlessing === key;
+        const canBuy = player.gold >= b.price && !active;
+        html += `<div class="blessing-card${active ? ' active' : ''}" data-blessing="${key}">
+            <div class="bc-icon">${b.icon}</div>
+            <div class="bc-name" style="color:${b.color}">${b.name}</div>
+            <div class="bc-desc">${b.desc}</div>
+            <div class="bc-price">${b.price}💰</div>
+            ${active ? '<div class="bc-active">已激活</div>' : (canBuy ? '<button class="btn-small btn-blessing">购买</button>' : '<div style="color:#888;font-size:11px">金币不足</div>')}
+        </div>`;
+    }
+    html += '</div>';
+
+    el.innerHTML = html;
+    const btnPotion = el.querySelector('#btn-buy-potion');
+    if (btnPotion) btnPotion.onclick = buyPotion;
+    const btnBox = el.querySelector('#btn-buy-box');
+    if (btnBox) btnBox.onclick = buyMysteryBox;
+    el.querySelectorAll('.blessing-card[data-blessing]').forEach(card => {
+        const btn = card.querySelector('.btn-blessing');
+        if (btn) btn.onclick = () => buyBlessing(card.dataset.blessing);
+    });
+}
+
+function buyPotion() {
+    if (player.potions >= player.maxPotions) return addLog('药水已达上限!', '#ff8888');
+    if (potionsBoughtThisVisit >= 5) return addLog('本次已购5瓶!', '#ff8888');
+    if (player.gold < 30) return addLog('金币不足!', '#ff8888');
+    player.gold -= 30;
+    player.potions++;
+    potionsBoughtThisVisit++;
+    addLog('购买了1瓶药水', '#44ff44');
+    updateTownUI();
+}
+
+function buyMysteryBox() {
+    if (player.gold < 250) return addLog('金币不足!', '#ff8888');
+    player.gold -= 250;
+    const item = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'));
+    player.addToInventory(item);
+    addLog(`购买神秘宝箱，获得: ${item.fullName}!`, item.rarity.color);
+    updateTownUI();
+}
+
+function buyBlessing(type) {
+    const b = BLESSING_DATA[type];
+    if (!b) return;
+    if (player.gold < b.price) return addLog('金币不足!', '#ff8888');
+    if (player.currentBlessing === type) return addLog('该祝福已生效!', '#ff8888');
+    player.gold -= b.price;
+    player.currentBlessing = type;
+    player.recalcStats();
+    player.hp = Math.min(player.hp, player.maxHp);
+    addLog(`获得祝福: ${b.icon} ${b.name} — ${b.desc}`, b.color);
+    updateTownUI();
 }
 
 async function renderLeaderboard() {
@@ -427,7 +520,11 @@ function enterDungeon() {
 function returnToTown() {
     saveProgress(player, floorLevel);
     gameState = STATE.TOWN;
-    player.hp = player.maxHp; // auto-heal when returning to town
+    player.hp = player.maxHp;
+    player.currentBlessing = null;
+    potionsBoughtThisVisit = 0;
+    player.recalcStats();
+    player.hp = player.maxHp;
     showTown();
 }
 
@@ -496,8 +593,12 @@ function movePlayer(dx, dy) {
         showVictory();
     } else if (cell.entity === ENTITY.POTION) {
         dungeon.removeEntity(nx, ny);
-        player.potions++;
-        addLog('捡到了一瓶药水!', '#44ff44');
+        if (player.potions >= player.maxPotions) {
+            addLog('药水已达上限(10瓶)!', '#ff8888');
+        } else {
+            player.potions++;
+            addLog('捡到了一瓶药水!', '#44ff44');
+        }
         updateUI();
     }
 
@@ -681,7 +782,8 @@ function finishCombat() {
         }
         const loot = combat.getLoot(floorLevel);
         const xpGained = combat.monster.xp;
-        const goldGained = combat.monster.gold || 0;
+        let goldGained = combat.monster.gold || 0;
+        goldGained = Math.round(goldGained * (1 + player.goldBonus / 100));
         player.gainXp(xpGained);
         player.gold += goldGained;
         addLog(`获得 ${xpGained} 经验, ${goldGained} 金币`, '#ffd700');
@@ -765,12 +867,19 @@ function showDeath() {
         return !lostItems.some((_, i) => shuffled[i].invIdx === idx && shuffled[i]._remove);
     });
 
+    // Gold penalty: lose 40%
+    const goldLost = Math.floor(player.gold * 0.40);
+    player.gold -= goldLost;
+    if (player.gold < 0) player.gold = 0;
+
     player.recalcStats();
+    player.currentBlessing = null;
+    potionsBoughtThisVisit = 0;
     floorLevel = 1;
     saveProgress(player, floorLevel);
 
     const lostStr = lostItems.length > 0 ? `\n装备掉落: ${lostItems.join(', ')}` : '';
-    document.getElementById('dead-info').textContent = `你回到了第1层，损失了20%装备${lostStr}`;
+    document.getElementById('dead-info').textContent = `回到了第1层，损失20%装备和${goldLost}金币(40%)${lostStr}`;
     document.getElementById('dead-floor').textContent = floorLevel;
     deadModal.classList.remove('hidden');
 }
@@ -861,6 +970,7 @@ document.getElementById('btn-enter-dungeon').addEventListener('click', enterDung
 document.getElementById('btn-town-leaderboard').addEventListener('click', () => {
     document.getElementById('town-codex').classList.add('hidden');
     document.getElementById('town-equipment').classList.add('hidden');
+    document.getElementById('town-shop').classList.add('hidden');
     const panel = document.getElementById('town-leaderboard');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) renderLeaderboard();
@@ -868,9 +978,18 @@ document.getElementById('btn-town-leaderboard').addEventListener('click', () => 
 document.getElementById('btn-town-codex').addEventListener('click', () => {
     document.getElementById('town-leaderboard').classList.add('hidden');
     document.getElementById('town-equipment').classList.add('hidden');
+    document.getElementById('town-shop').classList.add('hidden');
     const panel = document.getElementById('town-codex');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) renderCodex();
+});
+document.getElementById('btn-town-shop').addEventListener('click', () => {
+    document.getElementById('town-leaderboard').classList.add('hidden');
+    document.getElementById('town-codex').classList.add('hidden');
+    document.getElementById('town-equipment').classList.add('hidden');
+    const panel = document.getElementById('town-shop');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) updateShopUI();
 });
 document.getElementById('btn-change-name').addEventListener('click', () => {
     const username = getCurrentUser();
@@ -885,6 +1004,7 @@ document.getElementById('btn-change-name').addEventListener('click', () => {
 document.getElementById('btn-town-equip').addEventListener('click', () => {
     document.getElementById('town-leaderboard').classList.add('hidden');
     document.getElementById('town-codex').classList.add('hidden');
+    document.getElementById('town-shop').classList.add('hidden');
     document.getElementById('town-equipment').classList.toggle('hidden');
 });
 document.getElementById('btn-town-logout').addEventListener('click', () => {

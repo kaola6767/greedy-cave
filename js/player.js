@@ -49,6 +49,8 @@ class Player {
         this.gold = 0;
         this.classType = classType || null;
         this.cooldowns = {};   // { key: remainingTurns }
+        this.currentBlessing = null;  // 'war'|'iron'|'life'|'luck'|null
+        this.maxPotions = 10;
 
         // 8 equipment slots
         this.equipment = {
@@ -163,6 +165,11 @@ class Player {
         // Set bonus
         const setB = calcSetBonus(this.equipment);
         if (setB.atkPct) this.atk = Math.round(this.atk * (1 + setB.atkPct));
+
+        // Blessing effects
+        if (this.currentBlessing === 'war')  this.atk = Math.round(this.atk * 1.15);
+        if (this.currentBlessing === 'iron') this.def = Math.round(this.def * 1.15);
+        if (this.currentBlessing === 'life') this.maxHp = Math.round(this.maxHp * 1.20);
 
         this.hp = Math.min(this.hp, this.maxHp);
     }

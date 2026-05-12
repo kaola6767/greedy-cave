@@ -222,7 +222,7 @@ class Combat {
             item => item && item.legendaryMod && item.legendaryMod.name === '金刚不坏'
         );
 
-        let dmg = this.damageFormula(this.monster.atk, this.player.def);
+        let dmg = this.damageFormula(this.monster.atk, this.player.def + (this.player.resist || 0) * 2);
         let crit = false;
         if (Math.random() < 0.05) {
             crit = true;
@@ -304,7 +304,8 @@ class Combat {
     getLoot(floorLevel) {
         if (!this.playerWon) return [];
         const loot = [];
-        const dropRate = 0.30;
+        let dropRate = 0.30;
+        if (this.player.currentBlessing === 'luck') dropRate *= 1.15;
         if (Math.random() < dropRate) {
             loot.push(generateEquipment(floorLevel));
         }

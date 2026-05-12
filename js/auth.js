@@ -61,6 +61,7 @@ function saveProgress(player, floorLevel) {
     if (!username || !player) return;
     const save = {
         classType: player.classType,
+        currentBlessing: player.currentBlessing,
         level: player.level,
         xp: player.xp,
         xpToNext: player.xpToNext,
@@ -100,6 +101,7 @@ function restoreProgress(player, floorLevel) {
     player.gold = save.gold || 0;
     player.equipment = save.equipment;
     player.inventory = save.inventory;
+    player.currentBlessing = save.currentBlessing || null;
     player.recalcStats();
     player.hp = player.maxHp;
     return save.floorLevel || 1;
