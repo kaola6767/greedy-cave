@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.06';
+const GAME_VERSION = 'v3.00';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -426,7 +426,7 @@ function buyPotion() {
 function buyMysteryBox() {
     if (player.gold < 250) return addLog('金币不足!', '#ff8888');
     player.gold -= 250;
-    const item = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'));
+    const item = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'), 'elite');
     player.addToInventory(item);
     addLog(`购买神秘宝箱，获得: ${item.fullName}!`, item.rarity.color);
     updateTownUI();
@@ -773,6 +773,16 @@ function finishCombat() {
     if (combat.playerWon) {
         dungeon.removeEntity(player.x, player.y);
         dungeon.onMonsterKilled();
+        // Legendary: 暴击连动 - reset random skill CD
+        if (combat.skillCdr) {
+            const skills = player.getActiveSkills();
+            const onCd = skills.map(s => s.key).filter(k => player.cooldowns[k] > 0);
+            if (onCd.length > 0) {
+                const toReset = onCd[Math.floor(Math.random() * onCd.length)];
+                player.cooldowns[toReset] = 0;
+                addLog('⚡ 暴击连动! 技能CD已重置', '#ffd700');
+            }
+        }
         if (!dungeon.isBossFloor && dungeon.exitPlaced) {
             const pct = dungeon.getKillPct();
             if (pct >= 60) addLog(`🚪 已击杀${pct}%怪物，出口已开启!`, '#00ff88');
@@ -812,15 +822,15 @@ function finishCombat() {
 
 function openChest(type, cx, cy) {
     if (type === 'gold') {
-        const item1 = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'));
-        const item2 = generateEquipment(floorLevel, null);
+        const item1 = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'), 'elite');
+        const item2 = generateEquipment(floorLevel, null, 'normal');
         dropLoot(cx, cy, item1);
         dropLoot(cx, cy, item2);
         addLog(`打开黄金宝箱!`, '#ffd700');
         addLog(`掉落: ${item1.fullName}`, item1.rarity.color);
         addLog(`掉落: ${item2.fullName}`, item2.rarity.color);
     } else {
-        const item = generateEquipment(floorLevel, null);
+        const item = generateEquipment(floorLevel, null, 'normal');
         dropLoot(cx, cy, item);
         addLog(`打开白银宝箱，掉落: ${item.fullName}`, item.rarity.color);
     }

@@ -203,9 +203,11 @@ class Renderer {
         const ctx = this.ctx;
         const rarityColors = {
             'rarity-common': '#aaa',
+            'rarity-uncommon': '#4dff4d',
             'rarity-rare': '#4da6ff',
             'rarity-epic': '#c44dff',
             'rarity-legendary': '#ff8c00',
+            'rarity-mythic': '#ffd700',
         };
         const color = rarityColors[item.rarity.color] || '#aaa';
         const cx = px + CELL_SIZE / 2;

@@ -65,12 +65,18 @@ class Player {
         this.atk = 13;
         this.def = 6.5;
         this.critChance = 5;
+        this.critDmg = 0;
         this.dodge = 0;
         this.lifesteal = 0;
         this.goldBonus = 0;
         this.xpBonus = 0;
         this.elemDmg = 0;
         this.resist = 0;
+        this.penetration = 0;
+        this.dmgReduct = 0;
+        this.atkPct = 0;
+        this.defPct = 0;
+        this.hpPct = 0;
 
         this.recalcStats();
     }
@@ -115,12 +121,18 @@ class Player {
         this.atk = Math.round(10 + L * 3);
         this.def = Math.round(5 + L * 1.5);
         this.critChance = 5;
+        this.critDmg = 0;
         this.dodge = 0;
         this.lifesteal = 0;
         this.goldBonus = 0;
         this.xpBonus = 0;
         this.elemDmg = 0;
         this.resist = 0;
+        this.penetration = 0;
+        this.dmgReduct = 0;
+        this.atkPct = 0;
+        this.defPct = 0;
+        this.hpPct = 0;
 
         for (const item of Object.values(this.equipment)) {
             if (!item) continue;
@@ -141,6 +153,12 @@ class Player {
                     else if (a.stat === 'xpBonus') this.xpBonus += a.value;
                     else if (a.stat === 'elemDmg') this.elemDmg += a.value;
                     else if (a.stat === 'resist') this.resist += a.value;
+                    else if (a.stat === 'critDmg') this.critDmg += a.value;
+                    else if (a.stat === 'penetration') this.penetration += a.value;
+                    else if (a.stat === 'dmgReduct') this.dmgReduct += a.value;
+                    else if (a.stat === 'atkPct') this.atkPct += a.value;
+                    else if (a.stat === 'defPct') this.defPct += a.value;
+                    else if (a.stat === 'hpPct') this.hpPct += a.value;
                 }
             }
         }
@@ -162,9 +180,19 @@ class Player {
         // Meditation: skill CD -1
         // (handled at cooldown init time in combat)
 
+        // Apply percentage affixes
+        if (this.atkPct) this.atk = Math.round(this.atk * (1 + this.atkPct / 100));
+        if (this.defPct) this.def = Math.round(this.def * (1 + this.defPct / 100));
+        if (this.hpPct) this.maxHp = Math.round(this.maxHp * (1 + this.hpPct / 100));
+
         // Set bonus
         const setB = calcSetBonus(this.equipment);
         if (setB.atkPct) this.atk = Math.round(this.atk * (1 + setB.atkPct));
+        if (setB.defPct) this.def = Math.round(this.def * (1 + setB.defPct));
+        if (setB.hpPct) this.maxHp = Math.round(this.maxHp * (1 + setB.hpPct));
+        if (setB.critChance) this.critChance += setB.critChance;
+        if (setB.elemDmg) this.elemDmg = Math.round(this.elemDmg * (1 + setB.elemDmg));
+        if (setB.dmgReduct) this.dmgReduct += setB.dmgReduct;
 
         // Blessing effects
         if (this.currentBlessing === 'war')  this.atk = Math.round(this.atk * 1.15);

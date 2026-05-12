@@ -8,6 +8,7 @@ class Combat {
         this.playerWon = false;
         this.fled = false;
         this.undyingUsed = false;
+        this.skillCdr = false; // reset flag for critCDR legendary
         // Buffs: remaining turns
         this.buffs = {
             shieldWall: 0,
@@ -18,8 +19,22 @@ class Combat {
         this.monsterFrozen = 0;
     }
 
-    damageFormula(atk, def) {
-        const dmg = atk * (1 - def / (def + 200 + this.floorLevel * 5));
+    getPlayerPenetration() {
+        let pen = this.player.penetration || 0;
+        // Legendary: 穿透之刃
+        for (const item of Object.values(this.player.equipment)) {
+            if (item && item.legendaryMod && item.legendaryMod.name === '穿透之刃') {
+                pen = Math.round(pen * 1.5);
+                break;
+            }
+        }
+        return pen;
+    }
+
+    damageFormula(atk, def, penetration) {
+        const pen = penetration || 0;
+        const effectiveDef = Math.max(0, def - pen);
+        const dmg = atk * (1 - effectiveDef / (effectiveDef + 200 + this.floorLevel * 5));
         return Math.max(1, Math.round(dmg));
     }
 
@@ -29,12 +44,15 @@ class Combat {
         const cd = this.player.cooldowns[skill.key];
         if (cd > 0) return { ok: false, msg: `冷却中 (${cd}回合)` };
 
-        // Meditation passive: -1 cd
-        const cdReduction = this.player.hasPassive('meditation') ? 1 : 0;
+        // Meditation passive + set bonus cd reduce
+        let cdReduction = this.player.hasPassive('meditation') ? 1 : 0;
+        const setB3 = calcSetBonus(this.player.equipment);
+        if (setB3.cdReduce) cdReduction += setB3.cdReduce;
         const finalCd = Math.max(1, skill.cd - cdReduction);
 
         let dmg = 0;
         let extraMsg = '';
+        const pen = this.getPlayerPenetration();
 
         switch (skill.key) {
             case 'whirlwind':
@@ -108,9 +126,17 @@ class Combat {
         let crit = false;
         if (dmg > 0 && Math.random() * 100 < this.player.critChance) {
             crit = true;
-            let critMult = 1.5;
-            if (this.player.hasPassive('critDmg30')) critMult = 1.8;
+            const setB2 = calcSetBonus(this.player.equipment);
+            let critMult = setB2.critMult || 1.5;
+            if (this.player.hasPassive('critDmg30')) critMult += 0.3;
+            if (this.player.critDmg) critMult += this.player.critDmg / 100;
             dmg = Math.round(dmg * critMult);
+            // Legendary: 暴击连动
+            for (const item of Object.values(this.player.equipment)) {
+                if (item && item.legendaryMod && item.legendaryMod.name === '暴击连动') {
+                    if (Math.random() < 0.20) this.skillCdr = true;
+                }
+            }
         }
 
         this.monster.hp -= dmg;
@@ -147,6 +173,7 @@ class Combat {
 
     playerAttack() {
         const crit = Math.random() * 100 < this.player.critChance;
+        const pen = this.getPlayerPenetration();
 
         // Legendary: 雷霆之怒
         let doubleHit = false;
@@ -164,12 +191,21 @@ class Combat {
             }
         }
 
-        let dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def);
+        // Set bonus: critMult (暗影之刃 4件)
+        const setB = calcSetBonus(this.player.equipment);
+        let dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def, pen);
         dmg = Math.round(dmg * execDmg);
         if (crit) {
-            let critMult = 1.5;
-            if (this.player.hasPassive('critDmg30')) critMult = 1.8;
+            let critMult = setB.critMult || 1.5;
+            if (this.player.hasPassive('critDmg30')) critMult += 0.3;
+            if (this.player.critDmg) critMult += this.player.critDmg / 100;
             dmg = Math.round(dmg * critMult);
+            // Legendary: 暴击连动
+            for (const item of Object.values(this.player.equipment)) {
+                if (item && item.legendaryMod && item.legendaryMod.name === '暴击连动') {
+                    if (Math.random() < 0.20) this.skillCdr = true;
+                }
+            }
         }
         if (doubleHit) dmg *= 2;
         // Berserk buff
@@ -209,6 +245,8 @@ class Combat {
         const setB = calcSetBonus(this.player.equipment);
         let defMult = 1 - (setB.dmgReduct || 0);
 
+        // Dmg reduction from equipment + set bonus
+        if (this.player.dmgReduct > 0) defMult *= (1 - this.player.dmgReduct / 100);
         // Shield wall buff
         if (this.buffs.shieldWall > 0) defMult *= 0.5;
         // Immune buff
@@ -266,10 +304,27 @@ class Combat {
             }
         }
 
-        // Regen passive
+        // Regen passive + set bonus
+        const setB2 = calcSetBonus(this.player.equipment);
         if (this.player.hasPassive('regen5') && this.player.hp > 0) {
             const regen = Math.round(this.player.maxHp * 0.05);
             this.player.hp = Math.min(this.player.maxHp, this.player.hp + regen);
+        }
+        if (setB2.regen && this.player.hp > 0) {
+            const regen2 = Math.round(this.player.maxHp * setB2.regen / 100);
+            this.player.hp = Math.min(this.player.maxHp, this.player.hp + regen2);
+        }
+
+        // Set bonus: thorns (龙鳞之怒)
+        if (setB2.thorns && dmg > 0) {
+            const reflect = Math.round(dmg * setB2.thorns);
+            this.monster.hp -= reflect;
+            this.log.push(`龙鳞之怒反弹 ${reflect} 伤害`);
+            if (this.monster.hp <= 0) {
+                this.finished = true;
+                this.playerWon = true;
+                this.log.push(`击败了 ${this.monster.name}!`);
+            }
         }
 
         if (this.player.hp <= 0) {
@@ -304,13 +359,35 @@ class Combat {
     getLoot(floorLevel) {
         if (!this.playerWon) return [];
         const loot = [];
-        let dropRate = 0.30;
-        if (this.player.currentBlessing === 'luck') dropRate *= 1.15;
-        if (Math.random() < dropRate) {
-            loot.push(generateEquipment(floorLevel));
+
+        // Determine monster type for drop table
+        let monsterType = 'normal';
+        if (this.monster.isBoss) monsterType = 'boss';
+        else if (this.monster.isElite) monsterType = 'elite';
+
+        // Drop rates by type
+        let dropRate, dropCount;
+        if (monsterType === 'boss') {
+            dropRate = 1.0; dropCount = 2;
+        } else if (monsterType === 'elite') {
+            dropRate = 0.60; dropCount = 1;
+        } else {
+            dropRate = 0.30; dropCount = 1;
         }
-        if (this.monster.isBoss) {
-            loot.push(generateEquipment(floorLevel, RARITIES.find(r => r.name === '史诗')));
+
+        if (this.player.currentBlessing === 'luck') dropRate *= 1.15;
+
+        const setB = calcSetBonus(this.player.equipment);
+        if (setB.elemDmg) dropRate *= (1 + setB.elemDmg); // 元素之心
+
+        if (Math.random() < dropRate) {
+            for (let i = 0; i < dropCount; i++) {
+                if (monsterType === 'boss' && i === 0) {
+                    loot.push(generateEquipment(floorLevel, RARITIES.find(r => r.name === '史诗'), monsterType));
+                } else {
+                    loot.push(generateEquipment(floorLevel, null, monsterType));
+                }
+            }
         }
         return loot;
     }

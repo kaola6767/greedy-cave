@@ -512,9 +512,11 @@ body {
 .equip-slot span:last-child { color: #ccc; }
 
 .rarity-common { color: #aaa; }
+.rarity-uncommon { color: #4dff4d; }
 .rarity-rare { color: #4da6ff; }
 .rarity-epic { color: #c44dff; }
 .rarity-legendary { color: #ff8c00; }
+.rarity-mythic { color: #ffd700; }
 
 #player-inventory { margin-bottom: 16px; }
 
