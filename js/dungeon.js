@@ -162,8 +162,9 @@ class Dungeon {
 
         // monsters, chests, potions in other rooms
         const monsterCount = 5 + this.floorLevel * 2;
-        const chestCount = 1 + rand(0, this.floorLevel);
         const potionCount = 2 + rand(0, 3);
+        const isGoldChest = Math.random() < 0.30;
+        const chestType = isGoldChest ? ENTITY.GOLD_CHEST : ENTITY.SILVER_CHEST;
 
         const midRooms = allRooms.length > 2 ? allRooms.slice(1, -1) : allRooms;
         if (midRooms.length === 0) return;
@@ -182,12 +183,12 @@ class Dungeon {
                 if (this.map[ey][ex].entity !== ENTITY.NONE) continue;
                 this.map[ey][ex].entity = type;
                 if (genData) this.map[ey][ex].monsterData = genData();
-                if (type === ENTITY.CHEST || type === ENTITY.EXIT) placed.add(key);
+                if (type === ENTITY.SILVER_CHEST || type === ENTITY.GOLD_CHEST || type === ENTITY.EXIT) placed.add(key);
             }
         };
 
         placeRandom(ENTITY.MONSTER, Math.min(monsterCount, midRooms.length * 2), () => generateMonster(this.floorLevel));
-        placeRandom(ENTITY.CHEST, Math.min(chestCount, midRooms.length));
+        placeRandom(chestType, 1);
         placeRandom(ENTITY.POTION, potionCount);
         placeRandom(ENTITY.MONSTER, 2, () => generateMonster(this.floorLevel));
     }

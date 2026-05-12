@@ -1,5 +1,5 @@
 const TILE = { WALL: 0, FLOOR: 1, CORRIDOR: 2 };
-const ENTITY = { NONE: 0, MONSTER: 1, CHEST: 2, EXIT: 3, POTION: 4 };
+const ENTITY = { NONE: 0, MONSTER: 1, SILVER_CHEST: 2, EXIT: 3, POTION: 4, GOLD_CHEST: 5 };
 const STATE = { TITLE: 'TITLE', TOWN: 'TOWN', DUNGEON: 'DUNGEON', COMBAT: 'COMBAT', VICTORY: 'VICTORY', DEAD: 'DEAD' };
 
 const CELL_SIZE = 18;
@@ -16,7 +16,8 @@ const COLORS = {
     corridor: '#222238',
     player: '#00e5ff',
     monster: '#ff4444',
-    chest: '#ffd700',
+    silverChest: '#c0c0c0',
+    goldChest: '#ffd700',
     exit: '#00ff88',
     potion: '#4488ff',
     fog_unexplored: '#000',

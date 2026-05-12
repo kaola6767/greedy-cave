@@ -138,14 +138,42 @@ class Renderer {
         const cx = px + CELL_SIZE / 2;
         const cy = py + CELL_SIZE / 2;
 
-        if (entity === ENTITY.CHEST) {
-            // Chest
+        if (entity === ENTITY.SILVER_CHEST) {
+            // Large Silver Chest (~32x24)
+            ctx.fillStyle = '#606060';
+            ctx.fillRect(px - 5, py - 2, 28, 16);
+            ctx.fillStyle = '#909090';
+            ctx.fillRect(px - 3, py, 24, 12);
+            ctx.fillStyle = '#b0b0b0';
+            ctx.fillRect(px - 6, py - 4, 30, 6);
+            ctx.fillStyle = '#d0d0d0';
+            ctx.fillRect(px - 4, py - 3, 26, 4);
+            // Lock
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(px + 8, py + 2, 4, 4);
+            ctx.fillStyle = '#888';
+            ctx.fillRect(px + 9, py + 4, 2, 2);
+            // Silver trim
+            ctx.fillStyle = '#e0e0e0';
+            ctx.fillRect(px + 10, py - 5, 2, 3);
+        } else if (entity === ENTITY.GOLD_CHEST) {
+            // Large Gold Chest (~32x24)
+            ctx.fillStyle = '#5a3a0a';
+            ctx.fillRect(px - 5, py - 2, 28, 16);
             ctx.fillStyle = '#8B6914';
-            ctx.fillRect(px + 3, py + 6, 12, 8);
+            ctx.fillRect(px - 3, py, 24, 12);
             ctx.fillStyle = '#DAA520';
-            ctx.fillRect(px + 4, py + 7, 10, 6);
+            ctx.fillRect(px - 6, py - 4, 30, 6);
             ctx.fillStyle = '#FFD700';
-            ctx.fillRect(px + 7, py + 4, 4, 4);
+            ctx.fillRect(px - 4, py - 3, 26, 4);
+            // Lock
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(px + 8, py + 2, 4, 4);
+            ctx.fillStyle = '#B8860B';
+            ctx.fillRect(px + 9, py + 4, 2, 2);
+            // Gold trim / sparkle
+            ctx.fillStyle = '#FFEC8B';
+            ctx.fillRect(px + 10, py - 5, 2, 3);
         } else if (entity === ENTITY.EXIT) {
             // Door
             ctx.fillStyle = '#2e5a2e';

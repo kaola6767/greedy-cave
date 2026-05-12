@@ -1,4 +1,4 @@
-const CACHE = 'greedy-cave-v4';
+const CACHE = 'greedy-cave-v5';
 const FILES = [
   '.',
   'index.html',

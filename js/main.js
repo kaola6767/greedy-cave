@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.01';
+const GAME_VERSION = 'v2.02';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -472,9 +472,12 @@ function movePlayer(dx, dy) {
         const monsterData = cell.monsterData;
         dungeon.removeEntity(nx, ny);
         startCombat(monsterData);
-    } else if (cell.entity === ENTITY.CHEST) {
+    } else if (cell.entity === ENTITY.SILVER_CHEST) {
         dungeon.removeEntity(nx, ny);
-        openChest();
+        openChest('silver');
+    } else if (cell.entity === ENTITY.GOLD_CHEST) {
+        dungeon.removeEntity(nx, ny);
+        openChest('gold');
     } else if (cell.entity === ENTITY.EXIT) {
         showVictory();
     } else if (cell.entity === ENTITY.POTION) {
@@ -658,10 +661,20 @@ function finishCombat() {
     }, combat.playerWon ? 800 : 500);
 }
 
-function openChest() {
-    const item = generateEquipment(floorLevel, null);
-    player.addToInventory(item);
-    addLog(`打开宝箱，获得: ${item.fullName}!`, item.rarity.color);
+function openChest(type) {
+    if (type === 'gold') {
+        const item1 = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'));
+        const item2 = generateEquipment(floorLevel, null);
+        player.addToInventory(item1);
+        player.addToInventory(item2);
+        addLog(`打开黄金宝箱!`, '#ffd700');
+        addLog(`获得: ${item1.fullName}!`, item1.rarity.color);
+        addLog(`获得: ${item2.fullName}!`, item2.rarity.color);
+    } else {
+        const item = generateEquipment(floorLevel, null);
+        player.addToInventory(item);
+        addLog(`打开白银宝箱，获得: ${item.fullName}!`, item.rarity.color);
+    }
     updateUI();
 }
 
