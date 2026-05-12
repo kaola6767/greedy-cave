@@ -794,6 +794,8 @@ body {
     text-align: center;
     box-shadow: 0 8px 40px rgba(0,0,0,0.6);
     animation: modalIn 0.25s ease-out;
+    position: relative;
+    overflow: hidden;
 }
 
 @keyframes modalIn {
@@ -903,6 +905,20 @@ body {
     opacity: 0.35;
     cursor: not-allowed;
     transform: none;
+}
+
+/* Combat floating damage numbers */
+.combat-float {
+    position: absolute;
+    pointer-events: none;
+    font-weight: bold;
+    z-index: 110;
+    animation: combatFloatUp 0.9s ease-out forwards;
+}
+@keyframes combatFloatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    30% { opacity: 1; transform: translateY(-10px) scale(1.15); }
+    100% { opacity: 0; transform: translateY(-35px) scale(0.8); }
 }
 
 /* HP bar shake animation */

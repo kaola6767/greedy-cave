@@ -12,8 +12,6 @@ class Renderer {
         this.dirY = -1;
         this.hitFlash = 0;
         this.damageFlash = 0;
-        this.particles = [];
-        this.floatingTexts = [];
         this.shakeX = 0; this.shakeY = 0;
         this.shakeDuration = 0; this.shakeAmount = 0;
         this.minimapCanvas = document.createElement('canvas');
@@ -50,22 +48,6 @@ class Renderer {
             this.shakeDuration -= 0.016;
             this.shakeAmount *= 0.85;
             if (this.shakeDuration <= 0) { this.shakeX = 0; this.shakeY = 0; this.shakeAmount = 0; }
-        }
-
-        // Update particles
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            p.x += p.vx; p.y += p.vy;
-            if (p.gravity) p.vy += p.gravity;
-            p.life -= 0.016;
-            if (p.life <= 0) this.particles.splice(i, 1);
-        }
-
-        // Update floating texts
-        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-            const t = this.floatingTexts[i];
-            t.y -= 0.6; t.life -= 0.016;
-            if (t.life <= 0) this.floatingTexts.splice(i, 1);
         }
 
         // Floor theme
@@ -184,39 +166,10 @@ class Renderer {
             }
         }
 
-        // --- DRAW PARTICLES (under player/UI) ---
-        for (const p of this.particles) {
-            const alpha = Math.max(0, p.life / p.maxLife);
-            ctx.fillStyle = p.color.replace(/[\d.]+\)$/, `${(alpha * parseFloat(p.color.match(/[\d.]+\)$/)?.[0] || 0.7)).toFixed(2)})`);
-            // Simpler: use globalAlpha
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = p.color;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-
-        // --- DRAW FLOATING TEXTS ---
-        for (const t of this.floatingTexts) {
-            const alpha = Math.max(0, t.life / t.maxLife);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = t.color;
-            ctx.font = t.font;
-            ctx.textAlign = 'center';
-            ctx.fillText(t.text, t.x, t.y);
-        }
-        ctx.globalAlpha = 1;
-
         // --- DRAW PLAYER ---
         const ppx = this.player.x * CELL_SIZE + CELL_SIZE / 2;
         const ppy = this.player.y * CELL_SIZE + CELL_SIZE / 2;
         this.drawPlayerCharacter(ppx, ppy);
-
-        // Torch sparks (continuous)
-        if (Math.random() < 0.4) {
-            const tx = ppx + 4;
-            const ty = ppy - 4;
-            this.emitParticles(tx, ty, 1, { vx:(Math.random()-0.5)*0.5, vy:-1.5-Math.random(), spread:0.3, life:0.8, color:'#ffaa30', size:1.2, gravity:0.01 });
-        }
 
         ctx.restore();
 
@@ -245,32 +198,6 @@ class Renderer {
     triggerShake(intensity) {
         this.shakeDuration = Math.max(this.shakeDuration, 0.35);
         this.shakeAmount = Math.max(this.shakeAmount, intensity);
-    }
-
-    addFloatingText(x, y, text, color, size, bold) {
-        this.floatingTexts.push({
-            x, y,
-            text,
-            color: color || '#fff',
-            font: `${bold ? 'bold ' : ''}${size || 10}px sans-serif`,
-            life: 0.8,
-            maxLife: 0.8,
-        });
-    }
-
-    emitParticles(x, y, count, config) {
-        for (let i = 0; i < count; i++) {
-            this.particles.push({
-                x, y,
-                vx: (config.vx || 0) + (Math.random() - 0.5) * (config.spread || 1) * 2,
-                vy: (config.vy || 0) + (Math.random() - 0.5) * (config.spread || 1) * 2,
-                life: config.life * (0.5 + Math.random() * 0.5),
-                maxLife: config.life,
-                color: config.color || '#fff',
-                size: config.size * (0.5 + Math.random()),
-                gravity: config.gravity || 0,
-            });
-        }
     }
 
     drawMinimap(cw, ch) {

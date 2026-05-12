@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v3.10';
+const GAME_VERSION = 'v3.11';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -678,22 +678,7 @@ function combatAction(action) {
 
     if (action === 'attack') {
         combat.playerAttack();
-        if (renderer) {
-            renderer.triggerDamageFlash();
-            // Damage number on monster
-            const mx = player.x * CELL_SIZE + CELL_SIZE / 2;
-            const my = player.y * CELL_SIZE + CELL_SIZE / 2;
-            const dmg = combat.player.atk;
-            const isCrit = Math.random() < (player.critChance || 0) / 100;
-            if (isCrit) {
-                renderer.addFloatingText(mx, my - 12, Math.floor(dmg * 1.5).toString(), '#ffd700', 14, true);
-                renderer.triggerShake(3);
-                renderer.emitParticles(mx, my, 6, { vx:0, vy:-1, spread:2, life:0.4, color:'#ffd700', size:1.5, gravity:0.02 });
-            } else {
-                renderer.addFloatingText(mx, my - 10, dmg.toString(), '#fff', 10, false);
-                renderer.emitParticles(mx, my, 3, { vx:0, vy:-0.8, spread:1.5, life:0.3, color:'#fff', size:1, gravity:0.01 });
-            }
-        }
+        if (renderer) renderer.triggerDamageFlash();
     } else if (action === 'potion') {
         if (!player.usePotion()) return;
         document.getElementById('btn-potion').disabled = player.potions <= 0;
@@ -745,10 +730,6 @@ function combatSkill(skillKey) {
     }
     if (renderer) {
         renderer.triggerDamageFlash();
-        const sx = player.x * CELL_SIZE + CELL_SIZE / 2;
-        const sy = player.y * CELL_SIZE + CELL_SIZE / 2;
-        renderer.addFloatingText(sx, sy - 12, skill.name, '#aa88ff', 12, true);
-        renderer.emitParticles(sx, sy, 8, { vx:0, vy:-1.5, spread:3, life:0.5, color:'#cc88ff', size:1.2, gravity:0.02 });
         renderer.triggerShake(2);
     }
 
@@ -764,9 +745,6 @@ function combatSkill(skillKey) {
             combat.monsterAttack();
             if (renderer) {
                 renderer.triggerHitFlash();
-                const px = player.x * CELL_SIZE + CELL_SIZE / 2;
-                const py = player.y * CELL_SIZE + CELL_SIZE / 2;
-                renderer.addFloatingText(px, py - 14, combat.monster.atk.toString(), '#ff4444', 10, false);
                 if (combat.monster.isBoss) renderer.triggerShake(5);
             }
             combat.tickBuffs();
@@ -778,6 +756,24 @@ function combatSkill(skillKey) {
     } else {
         finishCombat();
     }
+}
+
+function showCombatFloat(text, color, side) {
+    const modal = document.querySelector('#combat-modal .modal-content');
+    if (!modal || modal.parentElement.classList.contains('hidden')) return;
+    const el = document.createElement('div');
+    el.className = 'combat-float';
+    el.textContent = text;
+    el.style.color = color || '#fff';
+    el.style.fontSize = /boss|暴击|击杀/i.test(text) ? '18px' : '14px';
+    // Position: 'player' = left side, 'monster' = right side
+    if (side === 'player') {
+        el.style.left = '15%'; el.style.top = '30%';
+    } else {
+        el.style.right = '15%'; el.style.top = '30%';
+    }
+    modal.appendChild(el);
+    setTimeout(() => el.remove(), 900);
 }
 
 function updateCombatUI() {
@@ -793,8 +789,21 @@ function updateCombatUI() {
     const newPw = phpRatio * 100;
     mhpEl.style.width = `${newMw}%`;
     phpEl.style.width = `${newPw}%`;
-    if (newMw < prevMw) { mhpEl.classList.remove('hp-shake'); void mhpEl.offsetWidth; mhpEl.classList.add('hp-shake'); }
-    if (newPw < prevPw) { phpEl.classList.remove('hp-shake'); void phpEl.offsetWidth; phpEl.classList.add('hp-shake'); }
+    if (newMw < prevMw) {
+        mhpEl.classList.remove('hp-shake'); void mhpEl.offsetWidth; mhpEl.classList.add('hp-shake');
+        const dmg = Math.round((prevMw - newMw) / 100 * combat.monster.maxHp);
+        if (dmg > 0) {
+            const isCrit = combat.log.length > 0 && combat.log[combat.log.length - 1].includes('暴击');
+            showCombatFloat(`-${dmg}`, isCrit ? '#ffd700' : '#ff6666', 'monster');
+            if (isCrit && renderer) renderer.triggerShake(3);
+        }
+        if (newMw <= 0) showCombatFloat('击杀!', '#ffd700', 'monster');
+    }
+    if (newPw < prevPw) {
+        phpEl.classList.remove('hp-shake'); void phpEl.offsetWidth; phpEl.classList.add('hp-shake');
+        const dmg = Math.round((prevPw - newPw) / 100 * player.maxHp);
+        if (dmg > 0) showCombatFloat(`-${dmg}`, '#ff4444', 'player');
+    }
     updateHpBarColor(phpEl, phpRatio);
     updateHpBarColor(mhpEl, mhpRatio);
 
@@ -810,18 +819,7 @@ function finishCombat() {
     document.getElementById('skill-buttons').querySelectorAll('button').forEach(b => b.disabled = true);
 
     if (combat.playerWon) {
-        // Kill particles
-        if (renderer) {
-            const wx = player.x * CELL_SIZE + CELL_SIZE / 2;
-            const wy = player.y * CELL_SIZE + CELL_SIZE / 2;
-            const count = combat.monster.isBoss ? 30 : 15;
-            const color = combat.monster.isBoss ? '#ff4444' : combat.monster.isElite ? '#ff8800' : '#cc4444';
-            renderer.emitParticles(wx, wy, count, { vx:0, vy:-2, spread:4, life:0.7, color, size:2, gravity:0.03 });
-            if (combat.monster.isBoss) renderer.triggerShake(8);
-            renderer.addFloatingText(wx, wy - 10, combat.monster.isBoss ? 'BOSS击杀!' : '击杀!', '#ffd700', combat.monster.isBoss ? 16 : 11, true);
-            // Loot sparkles
-            renderer.emitParticles(wx, wy, 8, { vx:0, vy:-1, spread:2, life:1, color:'#ffd700', size:1.5, gravity:0.015 });
-        }
+        if (renderer && combat.monster.isBoss) renderer.triggerShake(8);
         dungeon.removeEntity(player.x, player.y);
         dungeon.onMonsterKilled();
         // Legendary: 暴击连动 - reset random skill CD
