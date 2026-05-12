@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v3.02';
+const GAME_VERSION = 'v3.03';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -482,12 +482,18 @@ async function renderLeaderboard() {
     };
 }
 
-function enterDungeon() {
+async function enterDungeon() {
     gameState = STATE.DUNGEON;
     townScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
     saveProgress(player, floorLevel);
     restUsed = false;
+
+    // Load sprites if not loaded
+    if (!Sprites.loaded) {
+        await Sprites.loadAll();
+    }
+
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             resizeCanvas();

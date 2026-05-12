@@ -74,44 +74,45 @@ class Renderer {
                     continue;
                 }
 
-                // Tile color
                 if (cell.tile === TILE.WALL) {
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-                    // 3D bevel: top/left lighter edges for raised stone look
-                    ctx.strokeStyle = '#2a2a32';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + CELL_SIZE - 1, py); ctx.stroke();
-                    ctx.strokeStyle = '#333340';
-                    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + CELL_SIZE - 1); ctx.stroke();
-                } else {
-                    const h = ((x * 374761393 + y * 668265263 + 1013904223) & 0x7FFFFFFF) % 100;
-                    const v = (h % 7) - 3; // -3 to +3 variation
-                    const isCorridor = cell.tile === TILE.CORRIDOR;
-                    if (isCorridor) {
-                        const r = 40 + v, g = 32 + v, b = 24 + v;
-                        ctx.fillStyle = `rgba(${r},${g},${b},0.55)`;
-                    } else {
-                        const r = 25 + v, g = 25 + v, b = 35 + v;
-                        ctx.fillStyle = `rgba(${r},${g},${b},0.45)`;
+                    // Try sprite wall tile
+                    const wallDrawn = Sprites.drawTile(ctx, 'wallTiles', 0, 0, px, py, CELL_SIZE);
+                    if (!wallDrawn) {
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                        ctx.strokeStyle = '#2a2a32';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + CELL_SIZE - 1, py); ctx.stroke();
+                        ctx.strokeStyle = '#333340';
+                        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + CELL_SIZE - 1); ctx.stroke();
                     }
-                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-
-                    // Crack / dirt marks on ~8% of floor tiles
-                    if (h < 8) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-                        const cx2 = px + 3 + (h % 11);
-                        const cy2 = py + 4 + ((h * 7) % 10);
-                        ctx.fillRect(cx2, cy2, 1 + (h % 3), 1);
-                        if (h < 3) {
-                            ctx.fillRect(cx2 + 2, cy2 - 1, 1, 1);
+                } else {
+                    // Try sprite floor with variation
+                    const tile = getFloorTile(x, y);
+                    const floorDrawn = tile && Sprites.drawTile(ctx, tile.sheet, tile.col, tile.row, px, py, CELL_SIZE);
+                    if (!floorDrawn) {
+                        const h = ((x * 374761393 + y * 668265263 + 1013904223) & 0x7FFFFFFF) % 100;
+                        const v = (h % 7) - 3;
+                        const isCorridor = cell.tile === TILE.CORRIDOR;
+                        if (isCorridor) {
+                            const r = 40 + v, g = 32 + v, b = 24 + v;
+                            ctx.fillStyle = `rgba(${r},${g},${b},0.55)`;
+                        } else {
+                            const r = 25 + v, g = 25 + v, b = 35 + v;
+                            ctx.fillStyle = `rgba(${r},${g},${b},0.45)`;
+                        }
+                        ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                        if (h < 8) {
+                            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                            ctx.fillRect(px + 3 + (h % 11), py + 4 + ((h * 7) % 10), 1 + (h % 3), 1);
+                            if (h < 3) ctx.fillRect(px + 5 + (h % 9), py + 3, 1, 1);
                         }
                     }
                 }
             }
         }
 
-        // --- YELLOW WALL BOUNDARIES ---
+        // --- WALL BOUNDARY EDGES ---
         ctx.strokeStyle = '#c8a020';
         ctx.lineWidth = 1.5;
         for (let y = startRow; y < endRow; y++) {
@@ -301,7 +302,52 @@ class Renderer {
         const name = data ? data.name : '史莱姆';
         const s = isBoss ? 5.0 : isElite ? 2.0 : 1.5;
 
-        // Dark aura
+        // Try sprite-based rendering
+        const spriteInfo = getMonsterSprite(name);
+        if (spriteInfo && Sprites.images[`monster_${spriteInfo.key}_Idle`]) {
+            const sheetKey = `monster_${spriteInfo.key}_Idle`;
+            const fw = spriteInfo.frameW;
+            const fh = spriteInfo.frameW;
+            const nFrames = Sprites.frameCount(sheetKey, fw);
+            const frame = nFrames > 0 ? Math.floor(this.time * 4) % nFrames : 0;
+            const drawW = fw * s;
+            const drawH = fh * s;
+            const dx = cx - drawW / 2;
+            const dy = my - drawH / 2;
+
+            // Aura
+            const auraColor = isBoss ? 'rgba(255,0,0,0.4)' : isElite ? 'rgba(255,140,0,0.3)' : 'rgba(180,20,20,0.15)';
+            const auraR = drawW * 0.55;
+            const aura = ctx.createRadialGradient(cx, my, auraR * 0.2, cx, my, auraR);
+            aura.addColorStop(0, auraColor);
+            aura.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = aura;
+            ctx.beginPath(); ctx.arc(cx, my, auraR, 0, Math.PI * 2); ctx.fill();
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.beginPath(); ctx.ellipse(cx, my + drawH * 0.35, drawW * 0.35, drawW * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Draw sprite
+            Sprites.drawFrame(ctx, sheetKey, frame, fw, fh, dx, dy, drawW, drawH);
+
+            // Elite/Boss markers
+            if (isElite) {
+                ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(cx, my, drawW * 0.55, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = '#FFD700'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('★', cx, my - drawH * 0.5);
+            }
+            if (isBoss) {
+                ctx.strokeStyle = '#FF0000'; ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.arc(cx, my, drawW * 0.6, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = '#FF0000'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('☠', cx, my - drawH * 0.55);
+            }
+            return;
+        }
+
+        // --- Procedural fallback ---
         const auraColor = isBoss ? 'rgba(255,0,0,0.45)' : isElite ? 'rgba(255,140,0,0.35)' : 'rgba(180,20,20,0.2)';
         const auraR = isBoss ? 14 : isElite ? 12 : 10;
         const aura = ctx.createRadialGradient(cx, my, 1, cx, my, auraR);
@@ -486,68 +532,75 @@ class Renderer {
 
     drawPlayerCharacter(px, py) {
         const ctx = this.ctx;
-        const bob = Math.abs(this.walkPhase) > 0.05 ? Math.sin(this.walkPhase * 3) * 1 : 0;
-        const s = 0.9;
+        const isMoving = Math.abs(this.walkPhase) > 0.05;
+        const bob = isMoving ? Math.sin(this.walkPhase * 3) * 1 : 0;
 
-        // Torch glow
-        const torchX = px + 4;
-        const torchY = py - 4 + bob;
+        // Determine direction and sprite sheet
+        let sheetKey = 'playerIdleDown';
+        const dirY = this.dirY || -1;
+        const dirX = this.dirX || 0;
+        let dirLabel = 'Down';
+        if (dirY < 0) dirLabel = 'Up';
+        else if (dirY > 0) dirLabel = 'Down';
+        else if (Math.abs(dirX) > 0) dirLabel = 'Side';
+
+        if (isMoving) {
+            sheetKey = `playerWalk${dirLabel}`;
+        } else {
+            sheetKey = `playerIdle${dirLabel}`;
+        }
+
+        const frameW = 32;
+        const frameH = 32;
+        const nFrames = Sprites.frameCount(sheetKey, frameW);
+        const animSpeed = isMoving ? 8 : 6;
+        const frame = nFrames > 0 ? Math.floor(this.time * animSpeed) % nFrames : 0;
+
+        // Draw size: 2 cells (32px) to match sprite resolution
+        const drawW = CELL_SIZE * 2;
+        const drawH = CELL_SIZE * 2;
+        const dx = px - drawW / 2;
+        const dy = py - drawH + CELL_SIZE + bob;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(px, py + CELL_SIZE - 2, drawW * 0.4, 2, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Torch glow (behind player)
+        const torchX = px + drawW / 4;
+        const torchY = dy + drawH / 3;
         const flicker = 1 + Math.sin(this.time * 12) * 0.04 + Math.sin(this.time * 19) * 0.03;
-        const glowR = 6 * flicker;
+        const glowR = 8 * flicker;
         const glow = ctx.createRadialGradient(torchX, torchY, 1, torchX, torchY, glowR);
-        glow.addColorStop(0, 'rgba(255,200,80,0.9)');
-        glow.addColorStop(0.3, 'rgba(255,150,30,0.5)');
-        glow.addColorStop(0.7, 'rgba(255,80,10,0.1)');
+        glow.addColorStop(0, 'rgba(255,200,80,0.85)');
+        glow.addColorStop(0.3, 'rgba(255,150,30,0.45)');
+        glow.addColorStop(0.7, 'rgba(255,80,10,0.08)');
         glow.addColorStop(1, 'rgba(255,50,0,0)');
         ctx.fillStyle = glow;
         ctx.beginPath(); ctx.arc(torchX, torchY, glowR, 0, Math.PI * 2); ctx.fill();
 
-        // Torch flame
-        ctx.fillStyle = '#ffcc00';
-        ctx.beginPath(); ctx.arc(torchX, torchY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(torchX, torchY - 2, 1, 0, Math.PI * 2); ctx.fill();
+        // Draw sprite
+        const spriteDrawn = Sprites.drawFrame(ctx, sheetKey, frame, frameW, frameH, dx, dy, drawW, drawH);
 
-        // Torch stick
-        ctx.strokeStyle = '#8B6914';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(px + 3, py - 1); ctx.lineTo(torchX, torchY); ctx.stroke();
-
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.beginPath(); ctx.ellipse(px, py + 8, 5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Legs with walk animation
-        const legSwing = Math.sin(this.walkPhase * 3) * 2.5;
-        ctx.strokeStyle = '#c8b89a';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(px, py + 3 + bob); ctx.lineTo(px - legSwing, py + 8); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(px, py + 3 + bob); ctx.lineTo(px + legSwing, py + 8); ctx.stroke();
-
-        // Left arm
-        ctx.strokeStyle = '#d4c4a8';
-        ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.moveTo(px, py + 1 + bob); ctx.lineTo(px - 4, py + 4 + bob); ctx.stroke();
-
-        // Right arm (holding torch)
-        ctx.beginPath(); ctx.moveTo(px, py + 1 + bob); ctx.lineTo(px + 3, py - 1 + bob); ctx.stroke();
-
-        // Body
-        ctx.fillStyle = '#5a7a5a';
-        ctx.fillRect(px - 2.5, py + bob, 5, 5);
-
-        // Head
-        ctx.fillStyle = '#e8d5b7';
-        ctx.beginPath(); ctx.arc(px, py - 2 + bob, 3.5, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#c8b090';
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-
-        // Eyes (tiny dots)
-        ctx.fillStyle = '#222';
-        ctx.beginPath(); ctx.arc(px - 1, py - 2.5 + bob, 0.7, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(px + 1, py - 2.5 + bob, 0.7, 0, Math.PI * 2); ctx.fill();
+        // Fallback to procedural if sprite not loaded
+        if (!spriteDrawn) {
+            ctx.fillStyle = '#5a7a5a';
+            ctx.fillRect(px - 2.5, py + bob, 5, 5);
+            ctx.fillStyle = '#e8d5b7';
+            ctx.beginPath(); ctx.arc(px, py - 2 + bob, 3.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#222';
+            ctx.beginPath(); ctx.arc(px - 1, py - 2.5 + bob, 0.7, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(px + 1, py - 2.5 + bob, 0.7, 0, Math.PI * 2); ctx.fill();
+        } else {
+            // Torch flame on top of sprite
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath(); ctx.arc(torchX, torchY - 1, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(torchX, torchY - 2, 1.2, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#8B6914';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(px, dy + drawH * 0.4); ctx.lineTo(torchX, torchY); ctx.stroke();
+        }
     }
 
     drawFog(cw, ch) {

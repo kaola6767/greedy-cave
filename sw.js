@@ -1,4 +1,4 @@
-const CACHE = 'greedy-cave-v11';
+const CACHE = 'greedy-cave-v12';
 const FILES = [
   '.',
   'index.html',
@@ -9,6 +9,7 @@ const FILES = [
   'js/player.js',
   'js/dungeon.js',
   'js/combat.js',
+  'js/sprites.js',
   'js/renderer.js',
   'js/auth.js',
   'js/main.js',
