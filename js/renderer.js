@@ -10,6 +10,8 @@ class Renderer {
         this.lastPy = player.y;
         this.dirX = 0;
         this.dirY = -1;
+        this.hitFlash = 0;
+        this.damageFlash = 0;
     }
 
     render() {
@@ -76,11 +78,35 @@ class Renderer {
                 if (cell.tile === TILE.WALL) {
                     ctx.fillStyle = '#000';
                     ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                    // 3D bevel: top/left lighter edges for raised stone look
+                    ctx.strokeStyle = '#2a2a32';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + CELL_SIZE - 1, py); ctx.stroke();
+                    ctx.strokeStyle = '#333340';
+                    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + CELL_SIZE - 1); ctx.stroke();
                 } else {
-                    // Walkable: semi-transparent warm dark tone
+                    const h = ((x * 374761393 + y * 668265263 + 1013904223) & 0x7FFFFFFF) % 100;
+                    const v = (h % 7) - 3; // -3 to +3 variation
                     const isCorridor = cell.tile === TILE.CORRIDOR;
-                    ctx.fillStyle = isCorridor ? 'rgba(40,32,24,0.55)' : 'rgba(25,25,35,0.45)';
+                    if (isCorridor) {
+                        const r = 40 + v, g = 32 + v, b = 24 + v;
+                        ctx.fillStyle = `rgba(${r},${g},${b},0.55)`;
+                    } else {
+                        const r = 25 + v, g = 25 + v, b = 35 + v;
+                        ctx.fillStyle = `rgba(${r},${g},${b},0.45)`;
+                    }
                     ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+
+                    // Crack / dirt marks on ~8% of floor tiles
+                    if (h < 8) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                        const cx2 = px + 3 + (h % 11);
+                        const cy2 = py + 4 + ((h * 7) % 10);
+                        ctx.fillRect(cx2, cy2, 1 + (h % 3), 1);
+                        if (h < 3) {
+                            ctx.fillRect(cx2 + 2, cy2 - 1, 1, 1);
+                        }
+                    }
                 }
             }
         }
@@ -131,7 +157,22 @@ class Renderer {
 
         // --- FOG OF WAR + TORCH LIGHT ---
         this.drawFog(cw, ch);
+
+        // --- HIT FLASH OVERLAY ---
+        if (this.hitFlash > 0.01) {
+            ctx.fillStyle = `rgba(255,0,0,${this.hitFlash})`;
+            ctx.fillRect(0, 0, cw, ch);
+            this.hitFlash *= 0.85;
+        }
+        if (this.damageFlash > 0.01) {
+            ctx.fillStyle = `rgba(255,255,255,${this.damageFlash})`;
+            ctx.fillRect(0, 0, cw, ch);
+            this.damageFlash *= 0.78;
+        }
     }
+
+    triggerHitFlash() { this.hitFlash = 0.4; }
+    triggerDamageFlash() { this.damageFlash = 0.35; }
 
     drawEntity(px, py, entity, monsterData, lootData) {
         const ctx = this.ctx;

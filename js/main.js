@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v3.01';
+const GAME_VERSION = 'v3.02';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -676,6 +676,7 @@ function combatAction(action) {
 
     if (action === 'attack') {
         combat.playerAttack();
+        if (renderer) renderer.triggerDamageFlash();
     } else if (action === 'potion') {
         if (!player.usePotion()) return;
         document.getElementById('btn-potion').disabled = player.potions <= 0;
@@ -694,6 +695,7 @@ function combatAction(action) {
         setTimeout(() => {
             if (!combat) return;
             combat.monsterAttack();
+            if (renderer) renderer.triggerHitFlash();
             combat.tickBuffs();
             player.tickCooldowns();
             updateCombatUI();
@@ -718,6 +720,7 @@ function combatSkill(skillKey) {
         addLog(result.msg, '#ff8888');
         return;
     }
+    if (renderer) renderer.triggerDamageFlash();
 
     combat.tickBuffs();
     player.tickCooldowns();
@@ -729,6 +732,7 @@ function combatSkill(skillKey) {
         setTimeout(() => {
             if (!combat) return;
             combat.monsterAttack();
+            if (renderer) renderer.triggerHitFlash();
             combat.tickBuffs();
             player.tickCooldowns();
             updateCombatUI();
