@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v3.02';
+const GAME_VERSION = 'v3.10';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -647,13 +647,15 @@ function startCombat(monsterData) {
 function renderSkillButtons() {
     const container = document.getElementById('skill-buttons');
     const skills = player.getActiveSkills();
+    const elemMap = { fireball:'fire', whirlwind:'physical', shieldWall:'physical', holyLight:'holy', frostNova:'ice', shadowStrike:'shadow' };
     let html = '';
     for (const s of skills) {
         const cd = player.cooldowns[s.key] || 0;
+        const elem = elemMap[s.key] || '';
         if (cd > 0) {
             html += `<button class="btn-skill" disabled>${s.icon} ${s.name} (${cd})</button>`;
         } else {
-            html += `<button class="btn-skill" data-skill="${s.key}">${s.icon} ${s.name}</button>`;
+            html += `<button class="btn-skill ${elem}" data-skill="${s.key}">${s.icon} ${s.name}</button>`;
         }
     }
     container.innerHTML = html;
@@ -676,7 +678,22 @@ function combatAction(action) {
 
     if (action === 'attack') {
         combat.playerAttack();
-        if (renderer) renderer.triggerDamageFlash();
+        if (renderer) {
+            renderer.triggerDamageFlash();
+            // Damage number on monster
+            const mx = player.x * CELL_SIZE + CELL_SIZE / 2;
+            const my = player.y * CELL_SIZE + CELL_SIZE / 2;
+            const dmg = combat.player.atk;
+            const isCrit = Math.random() < (player.critChance || 0) / 100;
+            if (isCrit) {
+                renderer.addFloatingText(mx, my - 12, Math.floor(dmg * 1.5).toString(), '#ffd700', 14, true);
+                renderer.triggerShake(3);
+                renderer.emitParticles(mx, my, 6, { vx:0, vy:-1, spread:2, life:0.4, color:'#ffd700', size:1.5, gravity:0.02 });
+            } else {
+                renderer.addFloatingText(mx, my - 10, dmg.toString(), '#fff', 10, false);
+                renderer.emitParticles(mx, my, 3, { vx:0, vy:-0.8, spread:1.5, life:0.3, color:'#fff', size:1, gravity:0.01 });
+            }
+        }
     } else if (action === 'potion') {
         if (!player.usePotion()) return;
         document.getElementById('btn-potion').disabled = player.potions <= 0;
@@ -695,7 +712,13 @@ function combatAction(action) {
         setTimeout(() => {
             if (!combat) return;
             combat.monsterAttack();
-            if (renderer) renderer.triggerHitFlash();
+            if (renderer) {
+                renderer.triggerHitFlash();
+                const px = player.x * CELL_SIZE + CELL_SIZE / 2;
+                const py = player.y * CELL_SIZE + CELL_SIZE / 2;
+                renderer.addFloatingText(px, py - 14, combat.monster.atk.toString(), '#ff4444', 10, false);
+                if (combat.monster.isBoss) renderer.triggerShake(5);
+            }
             combat.tickBuffs();
             player.tickCooldowns();
             updateCombatUI();
@@ -720,7 +743,14 @@ function combatSkill(skillKey) {
         addLog(result.msg, '#ff8888');
         return;
     }
-    if (renderer) renderer.triggerDamageFlash();
+    if (renderer) {
+        renderer.triggerDamageFlash();
+        const sx = player.x * CELL_SIZE + CELL_SIZE / 2;
+        const sy = player.y * CELL_SIZE + CELL_SIZE / 2;
+        renderer.addFloatingText(sx, sy - 12, skill.name, '#aa88ff', 12, true);
+        renderer.emitParticles(sx, sy, 8, { vx:0, vy:-1.5, spread:3, life:0.5, color:'#cc88ff', size:1.2, gravity:0.02 });
+        renderer.triggerShake(2);
+    }
 
     combat.tickBuffs();
     player.tickCooldowns();
@@ -732,7 +762,13 @@ function combatSkill(skillKey) {
         setTimeout(() => {
             if (!combat) return;
             combat.monsterAttack();
-            if (renderer) renderer.triggerHitFlash();
+            if (renderer) {
+                renderer.triggerHitFlash();
+                const px = player.x * CELL_SIZE + CELL_SIZE / 2;
+                const py = player.y * CELL_SIZE + CELL_SIZE / 2;
+                renderer.addFloatingText(px, py - 14, combat.monster.atk.toString(), '#ff4444', 10, false);
+                if (combat.monster.isBoss) renderer.triggerShake(5);
+            }
             combat.tickBuffs();
             player.tickCooldowns();
             updateCombatUI();
@@ -751,8 +787,14 @@ function updateCombatUI() {
 
     const mhpEl = document.getElementById('combat-monster-hp');
     const phpEl = document.getElementById('combat-player-hp');
-    mhpEl.style.width = `${mhpRatio * 100}%`;
-    phpEl.style.width = `${phpRatio * 100}%`;
+    const prevMw = parseFloat(mhpEl.style.width) || 100;
+    const prevPw = parseFloat(phpEl.style.width) || 100;
+    const newMw = mhpRatio * 100;
+    const newPw = phpRatio * 100;
+    mhpEl.style.width = `${newMw}%`;
+    phpEl.style.width = `${newPw}%`;
+    if (newMw < prevMw) { mhpEl.classList.remove('hp-shake'); void mhpEl.offsetWidth; mhpEl.classList.add('hp-shake'); }
+    if (newPw < prevPw) { phpEl.classList.remove('hp-shake'); void phpEl.offsetWidth; phpEl.classList.add('hp-shake'); }
     updateHpBarColor(phpEl, phpRatio);
     updateHpBarColor(mhpEl, mhpRatio);
 
@@ -768,6 +810,18 @@ function finishCombat() {
     document.getElementById('skill-buttons').querySelectorAll('button').forEach(b => b.disabled = true);
 
     if (combat.playerWon) {
+        // Kill particles
+        if (renderer) {
+            const wx = player.x * CELL_SIZE + CELL_SIZE / 2;
+            const wy = player.y * CELL_SIZE + CELL_SIZE / 2;
+            const count = combat.monster.isBoss ? 30 : 15;
+            const color = combat.monster.isBoss ? '#ff4444' : combat.monster.isElite ? '#ff8800' : '#cc4444';
+            renderer.emitParticles(wx, wy, count, { vx:0, vy:-2, spread:4, life:0.7, color, size:2, gravity:0.03 });
+            if (combat.monster.isBoss) renderer.triggerShake(8);
+            renderer.addFloatingText(wx, wy - 10, combat.monster.isBoss ? 'BOSS击杀!' : '击杀!', '#ffd700', combat.monster.isBoss ? 16 : 11, true);
+            // Loot sparkles
+            renderer.emitParticles(wx, wy, 8, { vx:0, vy:-1, spread:2, life:1, color:'#ffd700', size:1.5, gravity:0.015 });
+        }
         dungeon.removeEntity(player.x, player.y);
         dungeon.onMonsterKilled();
         // Legendary: 暴击连动 - reset random skill CD
@@ -842,6 +896,7 @@ function showVictory() {
 
 function showDeath() {
     gameState = STATE.DEAD;
+    if (renderer) renderer.triggerShake(10);
 
     // Death penalty: back to floor 1, lose 20% equipment
     const allItems = [];

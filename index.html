@@ -211,15 +211,18 @@
         <!-- Combat Modal -->
         <div id="combat-modal" class="modal hidden">
             <div class="modal-content">
-                <h2 id="combat-title">战斗!</h2>
-                <div id="combat-monster">
-                    <div class="combat-name" id="combat-monster-name"></div>
-                    <div class="hp-bar"><div class="hp-fill" id="combat-monster-hp"></div></div>
-                    <div class="combat-stats" id="combat-monster-stats"></div>
-                </div>
-                <div id="combat-player">
-                    <div class="combat-name">你</div>
-                    <div class="hp-bar"><div class="hp-fill player-hp" id="combat-player-hp"></div></div>
+                <h2 id="combat-title">⚔️ 战斗!</h2>
+                <div id="combat-vs">
+                    <div class="combat-side" id="combat-player">
+                        <div class="combat-name">🦸 你</div>
+                        <div class="hp-bar"><div class="hp-fill player-hp" id="combat-player-hp"></div></div>
+                    </div>
+                    <div class="combat-vs-divider">⚡VS⚡</div>
+                    <div class="combat-side" id="combat-monster">
+                        <div class="combat-name" id="combat-monster-name"></div>
+                        <div class="hp-bar"><div class="hp-fill" id="combat-monster-hp"></div></div>
+                        <div class="combat-stats" id="combat-monster-stats"></div>
+                    </div>
                 </div>
                 <div id="combat-log"></div>
                 <div id="combat-actions">

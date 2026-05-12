@@ -12,6 +12,14 @@ class Renderer {
         this.dirY = -1;
         this.hitFlash = 0;
         this.damageFlash = 0;
+        this.particles = [];
+        this.floatingTexts = [];
+        this.shakeX = 0; this.shakeY = 0;
+        this.shakeDuration = 0; this.shakeAmount = 0;
+        this.minimapCanvas = document.createElement('canvas');
+        this.minimapCanvas.width = 100;
+        this.minimapCanvas.height = 80;
+        this.minimapCtx = this.minimapCanvas.getContext('2d');
     }
 
     render() {
@@ -35,6 +43,34 @@ class Renderer {
 
         ctx.clearRect(0, 0, cw, ch);
 
+        // Screen shake
+        if (this.shakeDuration > 0) {
+            this.shakeX = Math.sin(this.time * 60) * this.shakeAmount;
+            this.shakeY = Math.cos(this.time * 53.7) * this.shakeAmount;
+            this.shakeDuration -= 0.016;
+            this.shakeAmount *= 0.85;
+            if (this.shakeDuration <= 0) { this.shakeX = 0; this.shakeY = 0; this.shakeAmount = 0; }
+        }
+
+        // Update particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx; p.y += p.vy;
+            if (p.gravity) p.vy += p.gravity;
+            p.life -= 0.016;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+
+        // Update floating texts
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const t = this.floatingTexts[i];
+            t.y -= 0.6; t.life -= 0.016;
+            if (t.life <= 0) this.floatingTexts.splice(i, 1);
+        }
+
+        // Floor theme
+        const theme = getFloorTheme(this.dungeon ? this.dungeon.floorLevel : 1);
+
         // Camera
         // Dynamic vision: torch light diameter ≈ 3/4 of smaller canvas dimension
         const torchRadius = Math.min(cw, ch) * 0.375;
@@ -42,8 +78,8 @@ class Renderer {
         this.torchRadius = torchRadius;
         this.visionCells = visionCells;
 
-        let camX = this.player.x * CELL_SIZE - cw / 2 + CELL_SIZE / 2;
-        let camY = this.player.y * CELL_SIZE - ch / 2 + CELL_SIZE / 2;
+        let camX = this.player.x * CELL_SIZE - cw / 2 + CELL_SIZE / 2 + this.shakeX;
+        let camY = this.player.y * CELL_SIZE - ch / 2 + CELL_SIZE / 2 + this.shakeY;
         const maxCamX = d.cols * CELL_SIZE - cw;
         const maxCamY = d.rows * CELL_SIZE - ch;
         camX = Math.max(0, Math.min(camX, maxCamX));
@@ -86,13 +122,13 @@ class Renderer {
                     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + CELL_SIZE - 1); ctx.stroke();
                 } else {
                     const h = ((x * 374761393 + y * 668265263 + 1013904223) & 0x7FFFFFFF) % 100;
-                    const v = (h % 7) - 3; // -3 to +3 variation
+                    const v = (h % 7) - 3;
                     const isCorridor = cell.tile === TILE.CORRIDOR;
                     if (isCorridor) {
-                        const r = 40 + v, g = 32 + v, b = 24 + v;
+                        const r = theme.corrR + v, g = theme.corrG + v, b = theme.corrB + v;
                         ctx.fillStyle = `rgba(${r},${g},${b},0.55)`;
                     } else {
-                        const r = 25 + v, g = 25 + v, b = 35 + v;
+                        const r = theme.floorR + v, g = theme.floorG + v, b = theme.floorB + v;
                         ctx.fillStyle = `rgba(${r},${g},${b},0.45)`;
                     }
                     ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
@@ -111,8 +147,8 @@ class Renderer {
             }
         }
 
-        // --- YELLOW WALL BOUNDARIES ---
-        ctx.strokeStyle = '#c8a020';
+        // --- WALL BOUNDARIES (theme-colored) ---
+        ctx.strokeStyle = theme.wallEdge;
         ctx.lineWidth = 1.5;
         for (let y = startRow; y < endRow; y++) {
             for (let x = startCol; x < endCol; x++) {
@@ -148,15 +184,47 @@ class Renderer {
             }
         }
 
+        // --- DRAW PARTICLES (under player/UI) ---
+        for (const p of this.particles) {
+            const alpha = Math.max(0, p.life / p.maxLife);
+            ctx.fillStyle = p.color.replace(/[\d.]+\)$/, `${(alpha * parseFloat(p.color.match(/[\d.]+\)$/)?.[0] || 0.7)).toFixed(2)})`);
+            // Simpler: use globalAlpha
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // --- DRAW FLOATING TEXTS ---
+        for (const t of this.floatingTexts) {
+            const alpha = Math.max(0, t.life / t.maxLife);
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = t.color;
+            ctx.font = t.font;
+            ctx.textAlign = 'center';
+            ctx.fillText(t.text, t.x, t.y);
+        }
+        ctx.globalAlpha = 1;
+
         // --- DRAW PLAYER ---
         const ppx = this.player.x * CELL_SIZE + CELL_SIZE / 2;
         const ppy = this.player.y * CELL_SIZE + CELL_SIZE / 2;
         this.drawPlayerCharacter(ppx, ppy);
 
+        // Torch sparks (continuous)
+        if (Math.random() < 0.4) {
+            const tx = ppx + 4;
+            const ty = ppy - 4;
+            this.emitParticles(tx, ty, 1, { vx:(Math.random()-0.5)*0.5, vy:-1.5-Math.random(), spread:0.3, life:0.8, color:'#ffaa30', size:1.2, gravity:0.01 });
+        }
+
         ctx.restore();
 
         // --- FOG OF WAR + TORCH LIGHT ---
         this.drawFog(cw, ch);
+
+        // --- MINIMAP ---
+        this.drawMinimap(cw, ch);
 
         // --- HIT FLASH OVERLAY ---
         if (this.hitFlash > 0.01) {
@@ -173,6 +241,91 @@ class Renderer {
 
     triggerHitFlash() { this.hitFlash = 0.4; }
     triggerDamageFlash() { this.damageFlash = 0.35; }
+
+    triggerShake(intensity) {
+        this.shakeDuration = Math.max(this.shakeDuration, 0.35);
+        this.shakeAmount = Math.max(this.shakeAmount, intensity);
+    }
+
+    addFloatingText(x, y, text, color, size, bold) {
+        this.floatingTexts.push({
+            x, y,
+            text,
+            color: color || '#fff',
+            font: `${bold ? 'bold ' : ''}${size || 10}px sans-serif`,
+            life: 0.8,
+            maxLife: 0.8,
+        });
+    }
+
+    emitParticles(x, y, count, config) {
+        for (let i = 0; i < count; i++) {
+            this.particles.push({
+                x, y,
+                vx: (config.vx || 0) + (Math.random() - 0.5) * (config.spread || 1) * 2,
+                vy: (config.vy || 0) + (Math.random() - 0.5) * (config.spread || 1) * 2,
+                life: config.life * (0.5 + Math.random() * 0.5),
+                maxLife: config.life,
+                color: config.color || '#fff',
+                size: config.size * (0.5 + Math.random()),
+                gravity: config.gravity || 0,
+            });
+        }
+    }
+
+    drawMinimap(cw, ch) {
+        const ctx = this.ctx;
+        const d = this.dungeon;
+        const mw = 100, mh = 80;
+        const mx = cw - mw - 6, my = 6;
+        const sclX = mw / (d.cols * CELL_SIZE);
+        const sclY = mh / (d.rows * CELL_SIZE);
+
+        // Background
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.strokeStyle = 'rgba(255,215,0,0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(mx, my, mw, mh);
+
+        const mmCtx = this.minimapCtx;
+        mmCtx.clearRect(0, 0, 100, 80);
+
+        for (let y = 0; y < d.rows; y++) {
+            for (let x = 0; x < d.cols; x++) {
+                const cell = d.getTile(x, y);
+                if (!cell.explored) continue;
+                const rx = x * CELL_SIZE * sclX;
+                const ry = y * CELL_SIZE * sclY;
+                const rw = Math.max(1, CELL_SIZE * sclX);
+                const rh = Math.max(1, CELL_SIZE * sclY);
+
+                if (cell.tile === TILE.WALL) {
+                    mmCtx.fillStyle = cell.visible ? '#555' : '#2a2a2a';
+                } else {
+                    mmCtx.fillStyle = cell.visible ? '#999' : '#3a3a3a';
+                }
+                mmCtx.fillRect(rx, ry, rw, rh);
+
+                if (cell.visible && cell.entity === ENTITY.EXIT) {
+                    mmCtx.fillStyle = '#00ff88';
+                    mmCtx.fillRect(rx - 1, ry - 1, rw + 2, rh + 2);
+                }
+                if (cell.visible && cell.entity === ENTITY.MONSTER) {
+                    mmCtx.fillStyle = '#ff4444';
+                    mmCtx.fillRect(rx - 1, ry - 1, rw + 2, rh + 2);
+                }
+            }
+        }
+
+        // Player dot
+        const pdx = this.player.x * CELL_SIZE * sclX;
+        const pdy = this.player.y * CELL_SIZE * sclY;
+        mmCtx.fillStyle = '#ffd700';
+        mmCtx.beginPath(); mmCtx.arc(pdx, pdy, 2.5, 0, Math.PI * 2); mmCtx.fill();
+
+        ctx.drawImage(this.minimapCanvas, mx, my);
+    }
 
     drawEntity(px, py, entity, monsterData, lootData) {
         const ctx = this.ctx;
@@ -569,4 +722,14 @@ class Renderer {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, cw, ch);
     }
+}
+
+// --- Floor Theme Colors ---
+function getFloorTheme(floor) {
+    if (floor <= 9) return { name:'地窖', wallEdge:'#c8a020', floorR:25,floorG:25,floorB:35, corrR:40,corrG:32,corrB:24 };
+    if (floor <= 19) return { name:'矿洞', wallEdge:'#aa7744', floorR:30,floorG:28,floorB:22, corrR:45,corrG:35,corrB:20 };
+    if (floor <= 29) return { name:'墓穴', wallEdge:'#6666aa', floorR:22,floorG:22,floorB:38, corrR:30,corrG:28,corrB:42 };
+    if (floor <= 39) return { name:'熔岩', wallEdge:'#cc4422', floorR:38,floorG:22,floorB:18, corrR:42,corrG:28,corrB:18 };
+    if (floor <= 49) return { name:'深渊', wallEdge:'#8822aa', floorR:28,floorG:18,floorB:35, corrR:32,corrG:22,corrB:38 };
+    return { name:'龙巢', wallEdge:'#ff4444', floorR:32,floorG:18,floorB:20, corrR:38,corrG:22,corrB:22 };
 }
