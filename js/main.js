@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.03';
+const GAME_VERSION = 'v2.04';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -166,12 +166,14 @@ function openDrawer(tab) {
     drawerTab = tab;
     drawer.classList.remove('hidden');
     drawerOverlay.classList.remove('hidden');
+    dpad.classList.add('hidden');
     renderDrawerContent();
 }
 
 function closeDrawer() {
     drawer.classList.add('hidden');
     drawerOverlay.classList.add('hidden');
+    dpad.classList.remove('hidden');
 }
 
 function renderDrawerContent() {
