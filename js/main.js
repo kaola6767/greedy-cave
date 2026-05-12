@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v3.00';
+const GAME_VERSION = 'v3.01';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -482,26 +482,6 @@ async function renderLeaderboard() {
     };
 }
 
-function renderCodex() {
-    let html = '<div class="codex-list">';
-    const types = [
-        { label: '武器', items: WEAPON_NAMES },
-        { label: '头盔', items: HELMET_NAMES },
-        { label: '铠甲', items: ARMOR_NAMES },
-        { label: '护手', items: GLOVES_NAMES },
-        { label: '靴子', items: BOOTS_NAMES },
-        { label: '戒指', items: RING_NAMES },
-        { label: '项链', items: NECKLACE_NAMES },
-    ];
-    for (const t of types) {
-        html += `<div class="codex-section"><strong>${t.label}</strong>: ${t.items.join(' / ')}</div>`;
-    }
-    html += '<div class="codex-section"><strong>品质</strong>: 普通 | 稀有 | 黄金 | 史诗 | 传说</div>';
-    html += '<div class="codex-section"><strong>传说词缀</strong>: 处决者 不死鸟 时空裂隙 吸血之王 金刚不坏 雷霆之怒</div>';
-    html += '</div>';
-    document.getElementById('codex-content').innerHTML = html;
-}
-
 function enterDungeon() {
     gameState = STATE.DUNGEON;
     townScreen.classList.add('hidden');
@@ -590,7 +570,20 @@ function movePlayer(dx, dy) {
         dungeon.removeEntity(nx, ny);
         openChest('gold', nx, ny);
     } else if (cell.entity === ENTITY.EXIT) {
-        showVictory();
+        if (dungeon.isBossFloor && !dungeon.exitPlaced) {
+            addLog('必须击败Boss后出口才能使用!', '#ff8888');
+            player.x = prevPx;
+            player.y = prevPy;
+        } else {
+            const pct = dungeon.getKillPct();
+            if (pct >= 60) {
+                showVictory();
+            } else {
+                addLog(`需击杀60%怪物才能进入下一层 (当前${pct}%)`, '#ff8888');
+                player.x = prevPx;
+                player.y = prevPy;
+            }
+        }
     } else if (cell.entity === ENTITY.POTION) {
         dungeon.removeEntity(nx, ny);
         if (player.potions >= player.maxPotions) {
@@ -978,24 +971,14 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 document.getElementById('btn-enter-dungeon').addEventListener('click', enterDungeon);
 // Leaderboard
 document.getElementById('btn-town-leaderboard').addEventListener('click', () => {
-    document.getElementById('town-codex').classList.add('hidden');
     document.getElementById('town-equipment').classList.add('hidden');
     document.getElementById('town-shop').classList.add('hidden');
     const panel = document.getElementById('town-leaderboard');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) renderLeaderboard();
 });
-document.getElementById('btn-town-codex').addEventListener('click', () => {
-    document.getElementById('town-leaderboard').classList.add('hidden');
-    document.getElementById('town-equipment').classList.add('hidden');
-    document.getElementById('town-shop').classList.add('hidden');
-    const panel = document.getElementById('town-codex');
-    panel.classList.toggle('hidden');
-    if (!panel.classList.contains('hidden')) renderCodex();
-});
 document.getElementById('btn-town-shop').addEventListener('click', () => {
     document.getElementById('town-leaderboard').classList.add('hidden');
-    document.getElementById('town-codex').classList.add('hidden');
     document.getElementById('town-equipment').classList.add('hidden');
     const panel = document.getElementById('town-shop');
     panel.classList.toggle('hidden');
@@ -1013,7 +996,6 @@ document.getElementById('btn-change-name').addEventListener('click', () => {
 
 document.getElementById('btn-town-equip').addEventListener('click', () => {
     document.getElementById('town-leaderboard').classList.add('hidden');
-    document.getElementById('town-codex').classList.add('hidden');
     document.getElementById('town-shop').classList.add('hidden');
     document.getElementById('town-equipment').classList.toggle('hidden');
 });
@@ -1035,10 +1017,14 @@ document.querySelectorAll('#town-equipment .equip-slot').forEach(slot => {
 
 // Return to town (dungeon)
 document.getElementById('btn-return-town').addEventListener('click', () => {
-    if (gameState === STATE.DUNGEON) returnToTown();
+    if (gameState === STATE.DUNGEON) {
+        if (confirm('返回主城后地牢进度将重置')) returnToTown();
+    }
 });
 document.getElementById('mob-btn-return').addEventListener('click', () => {
-    if (gameState === STATE.DUNGEON) returnToTown();
+    if (gameState === STATE.DUNGEON) {
+        if (confirm('返回主城后地牢进度将重置')) returnToTown();
+    }
 });
 
 // Game actions

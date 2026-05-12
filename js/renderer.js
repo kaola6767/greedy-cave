@@ -177,13 +177,26 @@ class Renderer {
             ctx.fillStyle = '#FFEC8B';
             ctx.fillRect(px + 10, py - 5, 2, 3);
         } else if (entity === ENTITY.EXIT) {
-            // Door
-            ctx.fillStyle = '#2e5a2e';
-            ctx.fillRect(px + 2, py + 1, 14, 16);
-            ctx.fillStyle = '#4a8';
-            ctx.fillRect(px + 4, py + 3, 10, 14);
-            ctx.fillStyle = '#ffd700';
-            ctx.beginPath(); ctx.arc(cx, cy + 4, 2, 0, Math.PI * 2); ctx.fill();
+            const unlocked = this.dungeon.exitPlaced && (this.dungeon.isBossFloor || this.dungeon.getKillPct() >= 60);
+            if (unlocked) {
+                ctx.fillStyle = '#2e5a2e';
+                ctx.fillRect(px + 2, py + 1, 14, 16);
+                ctx.fillStyle = '#4a8';
+                ctx.fillRect(px + 4, py + 3, 10, 14);
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath(); ctx.arc(cx, cy + 4, 2, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(px + 2, py + 1, 14, 16);
+                ctx.fillStyle = '#555';
+                ctx.fillRect(px + 4, py + 3, 10, 14);
+                ctx.fillStyle = '#888';
+                ctx.beginPath(); ctx.arc(cx, cy + 4, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#666';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('🔒', cx, cy - 2);
+            }
         } else if (entity === ENTITY.POTION) {
             // Potion bottle
             ctx.fillStyle = '#4488ff';

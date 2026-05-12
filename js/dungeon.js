@@ -236,10 +236,12 @@ class Dungeon {
         this.startX = startRoom.x + Math.floor(startRoom.w / 2);
         this.startY = startRoom.y + Math.floor(startRoom.h / 2);
 
-        // Save exit position (exit not placed until kill condition met)
+        // Exit always placed, locked until kill condition met
         const exitRoom = allRooms[allRooms.length - 1];
         this.exitX = exitRoom.x + Math.floor(exitRoom.w / 2);
         this.exitY = exitRoom.y + Math.floor(exitRoom.h / 2);
+        this.map[this.exitY][this.exitX].entity = ENTITY.EXIT;
+        this.exitPlaced = true;
 
         // monsters, chests, potions in other rooms
         const monsterCount = 5 + this.floorLevel * 2;
@@ -284,8 +286,6 @@ class Dungeon {
 
     isWalkable(x, y) {
         const cell = this.getTile(x, y);
-        // Exit is only walkable after it's placed
-        if (cell.entity === ENTITY.EXIT && !this.exitPlaced) return false;
         return cell.tile !== TILE.WALL;
     }
 
