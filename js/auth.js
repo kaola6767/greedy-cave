@@ -60,6 +60,7 @@ function saveProgress(player, floorLevel) {
     const username = getCurrentUser();
     if (!username || !player) return;
     const save = {
+        classType: player.classType,
         level: player.level,
         xp: player.xp,
         xpToNext: player.xpToNext,

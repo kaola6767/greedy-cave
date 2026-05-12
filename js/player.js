@@ -1,5 +1,45 @@
+// --- Class & Skill Definitions ---
+const CLASS_DATA = {
+  warrior: {
+    name: '战士', icon: '⚔️', desc: '均衡输出',
+    skills: [
+      { type:'active',  name:'旋风斩',   icon:'🌪️', desc:'150%伤害',             cd:3, unlockLv:0,   key:'whirlwind' },
+      { type:'passive', name:'武器精通', icon:'🗡️', desc:'ATK +10%',             unlockLv:10,  key:'atk10' },
+      { type:'active',  name:'破甲一击', icon:'💥', desc:'无视30%防御',           cd:3, unlockLv:20,  key:'armorBreak' },
+      { type:'passive', name:'致命本能', icon:'👁️', desc:'暴击率 +8%',            unlockLv:40,  key:'crit8' },
+      { type:'active',  name:'狂暴',     icon:'🔥', desc:'3回合ATK+30%',          cd:5, unlockLv:60,  key:'berserk' },
+      { type:'passive', name:'暴击强化', icon:'💢', desc:'暴击伤害 +30%',         unlockLv:80,  key:'critDmg30' },
+      { type:'active',  name:'剑刃风暴', icon:'⚡', desc:'250%伤害',              cd:5, unlockLv:100, key:'bladeStorm' },
+    ]
+  },
+  tank: {
+    name: '坦克', icon: '🛡️', desc: '高防厚血',
+    skills: [
+      { type:'active',  name:'盾墙',     icon:'🧱', desc:'2回合减伤50%',         cd:4, unlockLv:0,   key:'shieldWall' },
+      { type:'passive', name:'坚韧',     icon:'💪', desc:'HP+20%, ATK-10%',     unlockLv:10,  key:'toughness' },
+      { type:'active',  name:'荆棘甲',   icon:'🌿', desc:'2回合反弹30%伤害',     cd:4, unlockLv:20,  key:'thorns' },
+      { type:'passive', name:'铁壁',     icon:'🪨', desc:'DEF +15%',             unlockLv:40,  key:'def15' },
+      { type:'active',  name:'圣光',     icon:'✨', desc:'恢复40%HP',            cd:6, unlockLv:60,  key:'holyLight' },
+      { type:'passive', name:'自愈',     icon:'💚', desc:'每回合恢复5%HP',       unlockLv:80,  key:'regen5' },
+      { type:'active',  name:'神圣领域', icon:'🏰', desc:'3回合免疫伤害',         cd:10,unlockLv:100, key:'sanctuary' },
+    ]
+  },
+  mage: {
+    name: '法师', icon: '🧙', desc: '高伤脆皮',
+    skills: [
+      { type:'active',  name:'火球术',   icon:'🔥', desc:'200%元素伤害,无视50%防', cd:3, unlockLv:0,   key:'fireball' },
+      { type:'passive', name:'元素亲和', icon:'🌟', desc:'elemDmg+20%, HP-15%', unlockLv:10,  key:'elemAffinity' },
+      { type:'active',  name:'冰霜新星', icon:'❄️', desc:'150%伤害+冰冻1回合',     cd:4, unlockLv:20,  key:'frostNova' },
+      { type:'passive', name:'元素精通', icon:'🔮', desc:'elemDmg +15%',          unlockLv:40,  key:'elemMastery' },
+      { type:'active',  name:'雷电风暴', icon:'⚡', desc:'250%元素伤害',           cd:3, unlockLv:60,  key:'thunderStorm' },
+      { type:'passive', name:'冥想',     icon:'🧘', desc:'技能冷却-1',            unlockLv:80,  key:'meditation' },
+      { type:'active',  name:'陨石',     icon:'☄️', desc:'350%元素伤害,无视防御',  cd:5, unlockLv:100, key:'meteor' },
+    ]
+  }
+};
+
 class Player {
-    constructor() {
+    constructor(classType) {
         this.x = 0;
         this.y = 0;
         this.level = 1;
@@ -7,6 +47,8 @@ class Player {
         this.xpToNext = 60;
         this.potions = 3;
         this.gold = 0;
+        this.classType = classType || null;
+        this.cooldowns = {};   // { key: remainingTurns }
 
         // 8 equipment slots
         this.equipment = {
@@ -15,7 +57,7 @@ class Player {
         };
         this.inventory = [];
 
-        // Derived stats (set by recalcStats)
+        // Derived stats
         this.maxHp = 120;
         this.hp = 120;
         this.atk = 13;
@@ -29,6 +71,40 @@ class Player {
         this.resist = 0;
 
         this.recalcStats();
+    }
+
+    getClassData() {
+        return this.classType ? CLASS_DATA[this.classType] : null;
+    }
+
+    getUnlockedSkills() {
+        const cd = this.getClassData();
+        if (!cd) return [];
+        return cd.skills.filter(s => this.level >= s.unlockLv);
+    }
+
+    getActiveSkills() {
+        return this.getUnlockedSkills().filter(s => s.type === 'active');
+    }
+
+    getPassiveSkills() {
+        return this.getUnlockedSkills().filter(s => s.type === 'passive');
+    }
+
+    checkSkillUnlocks(oldLevel) {
+        const cd = this.getClassData();
+        if (!cd) return [];
+        const newly = cd.skills.filter(
+            s => s.unlockLv > oldLevel && s.unlockLv <= this.level
+        );
+        for (const s of newly) {
+            this.cooldowns[s.key] = 0;
+        }
+        return newly;
+    }
+
+    hasPassive(key) {
+        return this.getPassiveSkills().some(s => s.key === key);
     }
 
     recalcStats() {
@@ -67,17 +143,38 @@ class Player {
             }
         }
 
+        // --- Class Passives ---
+        if (this.hasPassive('atk10')) this.atk = Math.round(this.atk * 1.10);
+        if (this.hasPassive('toughness')) {
+            this.maxHp = Math.round(this.maxHp * 1.20);
+            this.atk = Math.round(this.atk * 0.90);
+        }
+        if (this.hasPassive('crit8')) this.critChance += 8;
+        if (this.hasPassive('def15')) this.def = Math.round(this.def * 1.15);
+        if (this.hasPassive('elemAffinity')) {
+            this.elemDmg = Math.round(this.elemDmg * 1.20);
+            this.maxHp = Math.round(this.maxHp * 0.85);
+        }
+        if (this.hasPassive('elemMastery')) this.elemDmg = Math.round(this.elemDmg * 1.15);
+
+        // Meditation: skill CD -1
+        // (handled at cooldown init time in combat)
+
         // Set bonus
         const setB = calcSetBonus(this.equipment);
         if (setB.atkPct) this.atk = Math.round(this.atk * (1 + setB.atkPct));
-        // dmgReduct applied in combat
-
-        // Legendary: 不死鸟 tracked in combat
 
         this.hp = Math.min(this.hp, this.maxHp);
     }
 
+    tickCooldowns() {
+        for (const key of Object.keys(this.cooldowns)) {
+            if (this.cooldowns[key] > 0) this.cooldowns[key]--;
+        }
+    }
+
     gainXp(amount) {
+        const oldLevel = this.level;
         const bonus = 1 + this.xpBonus / 100;
         const gained = Math.round(amount * bonus);
         this.xp += gained;
@@ -90,13 +187,19 @@ class Player {
         }
         this.xp = Math.min(this.xp, this.xpToNext);
         this.recalcStats();
+
+        // Check skill unlocks
+        const newSkills = this.checkSkillUnlocks(oldLevel);
+        for (const s of newSkills) {
+            const typeLabel = s.type === 'active' ? '主动技能' : '被动技能';
+            addLog(`🔓 解锁${typeLabel}: ${s.icon} ${s.name}!`, '#ffd700');
+        }
     }
 
     equip(item) {
         const idx = this.inventory.indexOf(item);
         if (idx !== -1) this.inventory.splice(idx, 1);
         let slot = item.type.slot;
-        // Auto-assign ring to ring2 if ring1 is occupied and ring2 is free
         if (slot === 'ring1' && this.equipment.ring1 && !this.equipment.ring2) {
             slot = 'ring2';
         }

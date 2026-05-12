@@ -8,11 +8,141 @@ class Combat {
         this.playerWon = false;
         this.fled = false;
         this.undyingUsed = false;
+        // Buffs: remaining turns
+        this.buffs = {
+            shieldWall: 0,
+            thorns: 0,
+            berserk: 0,
+            immune: 0,
+        };
+        this.monsterFrozen = 0;
     }
 
     damageFormula(atk, def) {
         const dmg = atk * (1 - def / (def + 200 + this.floorLevel * 5));
         return Math.max(1, Math.round(dmg));
+    }
+
+    // Returns { ok: boolean, msg: string }
+    useSkill(skill) {
+        if (!skill || skill.type !== 'active') return { ok: false, msg: '无效技能' };
+        const cd = this.player.cooldowns[skill.key];
+        if (cd > 0) return { ok: false, msg: `冷却中 (${cd}回合)` };
+
+        // Meditation passive: -1 cd
+        const cdReduction = this.player.hasPassive('meditation') ? 1 : 0;
+        const finalCd = Math.max(1, skill.cd - cdReduction);
+
+        let dmg = 0;
+        let extraMsg = '';
+
+        switch (skill.key) {
+            case 'whirlwind':
+                dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def);
+                dmg = Math.round(dmg * 1.5);
+                break;
+            case 'armorBreak':
+                dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), Math.round(this.monster.def * 0.7));
+                break;
+            case 'berserk':
+                this.buffs.berserk = 3;
+                this.player.cooldowns[skill.key] = finalCd;
+                extraMsg = 'ATK+30% 持续3回合';
+                this.log.push(`🔥 狂暴! ${extraMsg}`);
+                return { ok: true, msg: extraMsg };
+            case 'bladeStorm':
+                dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def);
+                dmg = Math.round(dmg * 2.5);
+                break;
+            case 'shieldWall':
+                this.buffs.shieldWall = 2;
+                this.player.cooldowns[skill.key] = finalCd;
+                extraMsg = '减伤50% 持续2回合';
+                this.log.push(`🧱 盾墙! ${extraMsg}`);
+                return { ok: true, msg: extraMsg };
+            case 'thorns':
+                this.buffs.thorns = 2;
+                this.player.cooldowns[skill.key] = finalCd;
+                extraMsg = '反弹30%伤害 持续2回合';
+                this.log.push(`🌿 荆棘甲! ${extraMsg}`);
+                return { ok: true, msg: extraMsg };
+            case 'holyLight':
+                const heal = Math.round(this.player.maxHp * 0.4);
+                this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+                this.player.cooldowns[skill.key] = finalCd;
+                extraMsg = `恢复了 ${heal} HP`;
+                this.log.push(`✨ 圣光! ${extraMsg}`);
+                return { ok: true, msg: extraMsg };
+            case 'sanctuary':
+                this.buffs.immune = 3;
+                this.player.cooldowns[skill.key] = finalCd;
+                extraMsg = '免疫伤害 持续3回合';
+                this.log.push(`🏰 神圣领域! ${extraMsg}`);
+                return { ok: true, msg: extraMsg };
+            case 'fireball':
+                dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), Math.round(this.monster.def * 0.5));
+                dmg = Math.round(dmg * 2.0);
+                break;
+            case 'frostNova':
+                dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def);
+                dmg = Math.round(dmg * 1.5);
+                this.monsterFrozen = 1;
+                extraMsg = '怪物被冰冻!';
+                break;
+            case 'thunderStorm':
+                dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def);
+                dmg = Math.round(dmg * 2.5);
+                break;
+            case 'meteor':
+                dmg = Math.round(this.player.atk * 3.5 + (this.player.elemDmg || 0) * 3.5);
+                dmg = Math.max(1, dmg);
+                break;
+            default:
+                return { ok: false, msg: '未知技能' };
+        }
+
+        // Berserk bonus
+        if (this.buffs.berserk > 0) dmg = Math.round(dmg * 1.30);
+
+        // Crit check (only for damaging skills)
+        let crit = false;
+        if (dmg > 0 && Math.random() * 100 < this.player.critChance) {
+            crit = true;
+            let critMult = 1.5;
+            if (this.player.hasPassive('critDmg30')) critMult = 1.8;
+            dmg = Math.round(dmg * critMult);
+        }
+
+        this.monster.hp -= dmg;
+        const parts = [crit ? '暴击!' : '', extraMsg].filter(Boolean);
+        this.log.push(`[${skill.name}] 对 ${this.monster.name} 造成 ${dmg} 伤害` + (parts.length ? ' [' + parts.join(' ') + ']' : ''));
+
+        this.player.cooldowns[skill.key] = finalCd;
+
+        // Lifesteal
+        if (this.player.lifesteal > 0 && dmg > 0) {
+            const heal = Math.round(dmg * this.player.lifesteal / 100);
+            if (heal > 0) {
+                this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+                this.log.push(`吸血恢复 ${heal} HP`);
+            }
+        }
+
+        if (this.monster.hp <= 0) {
+            this.finished = true;
+            this.playerWon = true;
+            this.log.push(`击败了 ${this.monster.name}!`);
+        }
+
+        return { ok: true, msg: `施放 ${skill.name}` };
+    }
+
+    tickBuffs() {
+        if (this.buffs.shieldWall > 0) this.buffs.shieldWall--;
+        if (this.buffs.thorns > 0) this.buffs.thorns--;
+        if (this.buffs.berserk > 0) this.buffs.berserk--;
+        if (this.buffs.immune > 0) this.buffs.immune--;
+        if (this.monsterFrozen > 0) this.monsterFrozen--;
     }
 
     playerAttack() {
@@ -36,13 +166,20 @@ class Combat {
 
         let dmg = this.damageFormula(this.player.atk + (this.player.elemDmg || 0), this.monster.def);
         dmg = Math.round(dmg * execDmg);
-        if (crit) dmg = Math.round(dmg * 1.5);
+        if (crit) {
+            let critMult = 1.5;
+            if (this.player.hasPassive('critDmg30')) critMult = 1.8;
+            dmg = Math.round(dmg * critMult);
+        }
         if (doubleHit) dmg *= 2;
+        // Berserk buff
+        if (this.buffs.berserk > 0) dmg = Math.round(dmg * 1.30);
 
         this.monster.hp -= dmg;
         const parts = [];
         if (crit) parts.push('暴击!');
         if (doubleHit) parts.push('雷霆之怒!');
+        if (this.buffs.berserk > 0) parts.push('狂暴');
         this.log.push(`你对 ${this.monster.name} 造成 ${dmg} 伤害` + (parts.length ? ' [' + parts.join(' ') + ']' : ''));
 
         // Lifesteal
@@ -62,9 +199,23 @@ class Combat {
     }
 
     monsterAttack() {
+        // Frozen: skip attack
+        if (this.monsterFrozen > 0) {
+            this.log.push(`${this.monster.name} 被冰冻，无法行动!`);
+            return;
+        }
+
         // Set bonus: dmg reduction
         const setB = calcSetBonus(this.player.equipment);
         let defMult = 1 - (setB.dmgReduct || 0);
+
+        // Shield wall buff
+        if (this.buffs.shieldWall > 0) defMult *= 0.5;
+        // Immune buff
+        if (this.buffs.immune > 0) {
+            this.log.push(`神圣领域免疫了 ${this.monster.name} 的攻击!`);
+            return;
+        }
 
         // Legendary: 金刚不坏
         const hasDiamond = Object.values(this.player.equipment).some(
@@ -83,13 +234,43 @@ class Combat {
         // Dodge
         if (this.player.dodge > 0 && Math.random() * 100 < this.player.dodge) {
             this.log.push(`${this.monster.name} 的攻击被闪避了!`);
+            // Thorns still applies even on dodge
+            if (this.buffs.thorns > 0) {
+                const reflect = Math.round(dmg * 0.30);
+                this.monster.hp -= reflect;
+                this.log.push(`荆棘甲反弹 ${reflect} 伤害`);
+                if (this.monster.hp <= 0) {
+                    this.finished = true;
+                    this.playerWon = true;
+                    this.log.push(`击败了 ${this.monster.name}!`);
+                }
+            }
             return;
         }
 
         this.player.hp -= dmg;
         let logMsg = `${this.monster.name} 对你造成 ${dmg} 伤害`;
         if (crit) logMsg += ' [暴击!]';
+        if (this.buffs.shieldWall > 0) logMsg += ' [盾墙]';
         this.log.push(logMsg);
+
+        // Thorns reflect
+        if (this.buffs.thorns > 0) {
+            const reflect = Math.round(dmg * 0.30);
+            this.monster.hp -= reflect;
+            this.log.push(`荆棘甲反弹 ${reflect} 伤害`);
+            if (this.monster.hp <= 0) {
+                this.finished = true;
+                this.playerWon = true;
+                this.log.push(`击败了 ${this.monster.name}!`);
+            }
+        }
+
+        // Regen passive
+        if (this.player.hasPassive('regen5') && this.player.hp > 0) {
+            const regen = Math.round(this.player.maxHp * 0.05);
+            this.player.hp = Math.min(this.player.maxHp, this.player.hp + regen);
+        }
 
         if (this.player.hp <= 0) {
             // Legendary: 不死鸟
@@ -127,7 +308,6 @@ class Combat {
         if (Math.random() < dropRate) {
             loot.push(generateEquipment(floorLevel));
         }
-        // Boss guaranteed epic+
         if (this.monster.isBoss) {
             loot.push(generateEquipment(floorLevel, RARITIES.find(r => r.name === '史诗')));
         }

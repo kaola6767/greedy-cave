@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.0';
+const GAME_VERSION = 'v2.01';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -249,17 +249,37 @@ drawerOverlay.addEventListener('click', closeDrawer);
 function startNewGame() {
     const username = getCurrentUser();
     deleteSave(username);
-    player = new Player();
+    // Show class selection instead of immediately starting
+    document.getElementById('class-select').classList.remove('hidden');
+    document.getElementById('logged-section').classList.add('hidden');
+}
+
+function selectClass(classType) {
+    document.getElementById('class-select').classList.add('hidden');
+    document.getElementById('logged-section').classList.remove('hidden');
+    player = new Player(classType);
     floorLevel = 1;
     restUsed = false;
     titleScreen.classList.add('hidden');
+    const cd = player.getClassData();
+    addLog(`选择了职业: ${cd.icon} ${cd.name}`, '#ffd700');
     showTown();
 }
 
 function continueGame() {
-    player = new Player();
+    const username = getCurrentUser();
+    const save = loadProgress(username);
+    const classType = (save && save.classType) || null;
+    player = new Player(classType);
     const savedFloor = restoreProgress(player, floorLevel);
     floorLevel = savedFloor || 1;
+    // Re-apply saved level/xp to unlock skills
+    if (save) {
+        player.level = save.level || 1;
+        player.xp = save.xp || 0;
+        player.xpToNext = save.xpToNext || 60;
+        player.checkSkillUnlocks(0);
+    }
     restUsed = false;
     titleScreen.classList.add('hidden');
     showTown();
@@ -285,7 +305,9 @@ function updateTownUI() {
     document.getElementById('town-potions').textContent = player.potions;
     const displayName = getDisplayName(getCurrentUser());
     document.getElementById('town-gold').textContent = player.gold || 0;
-    document.getElementById('town-floor').textContent = `${GAME_VERSION} | 第${floorLevel}层 | ${displayName}`;
+    const cd = player.getClassData();
+    const classLabel = cd ? `${cd.icon} ${cd.name} ` : '';
+    document.getElementById('town-floor').textContent = `${GAME_VERSION} | 第${floorLevel}层 | ${classLabel}${displayName}`;
 
     // Equipment
     for (const slot of ['weapon','helmet','armor','gloves','boots','ring1','ring2','necklace']) {
@@ -482,9 +504,28 @@ function startCombat(monsterData) {
     document.getElementById('btn-attack').disabled = false;
     document.getElementById('btn-potion').disabled = player.potions <= 0;
     document.getElementById('btn-flee').disabled = false;
+    renderSkillButtons();
     combatModal.classList.remove('hidden');
 
     addLog(`遭遇了 ${monster.emoji} ${monster.name}!`, '#ff4444');
+}
+
+function renderSkillButtons() {
+    const container = document.getElementById('skill-buttons');
+    const skills = player.getActiveSkills();
+    let html = '';
+    for (const s of skills) {
+        const cd = player.cooldowns[s.key] || 0;
+        if (cd > 0) {
+            html += `<button class="btn-skill" disabled>${s.icon} ${s.name} (${cd})</button>`;
+        } else {
+            html += `<button class="btn-skill" data-skill="${s.key}">${s.icon} ${s.name}</button>`;
+        }
+    }
+    container.innerHTML = html;
+    container.querySelectorAll('.btn-skill[data-skill]').forEach(btn => {
+        btn.addEventListener('click', () => combatSkill(btn.dataset.skill));
+    });
 }
 
 function updateHpBarColor(el, ratio) {
@@ -508,13 +549,56 @@ function combatAction(action) {
         combat.flee();
     }
 
+    // Tick buffs and cooldowns after player action
+    combat.tickBuffs();
+    player.tickCooldowns();
+
     updateCombatUI();
+    renderSkillButtons();
 
     if (!combat.finished) {
         setTimeout(() => {
             if (!combat) return;
             combat.monsterAttack();
+            combat.tickBuffs();
+            player.tickCooldowns();
             updateCombatUI();
+            renderSkillButtons();
+            if (combat.finished) finishCombat();
+        }, 400);
+    } else {
+        finishCombat();
+    }
+}
+
+function combatSkill(skillKey) {
+    if (!combat || combat.finished) return;
+    const now = performance.now();
+    if (now - lastCombatTime < 1000) return;
+    lastCombatTime = now;
+
+    const skill = player.getActiveSkills().find(s => s.key === skillKey);
+    if (!skill) return;
+    const result = combat.useSkill(skill);
+    if (!result.ok) {
+        addLog(result.msg, '#ff8888');
+        return;
+    }
+
+    combat.tickBuffs();
+    player.tickCooldowns();
+
+    updateCombatUI();
+    renderSkillButtons();
+
+    if (!combat.finished) {
+        setTimeout(() => {
+            if (!combat) return;
+            combat.monsterAttack();
+            combat.tickBuffs();
+            player.tickCooldowns();
+            updateCombatUI();
+            renderSkillButtons();
             if (combat.finished) finishCombat();
         }, 400);
     } else {
@@ -543,6 +627,7 @@ function finishCombat() {
     document.getElementById('btn-attack').disabled = true;
     document.getElementById('btn-potion').disabled = true;
     document.getElementById('btn-flee').disabled = true;
+    document.getElementById('skill-buttons').querySelectorAll('button').forEach(b => b.disabled = true);
 
     const wasFled = combat.fled;
 
@@ -813,6 +898,10 @@ document.addEventListener('keydown', (e) => {
         if (e.key === '1') combatAction('attack');
         else if (e.key === '2') combatAction('potion');
         else if (e.key === '3') combatAction('flee');
+        else if (e.key === '4') { const skills = player.getActiveSkills(); if (skills[0]) combatSkill(skills[0].key); }
+        else if (e.key === '5') { const skills = player.getActiveSkills(); if (skills[1]) combatSkill(skills[1].key); }
+        else if (e.key === '6') { const skills = player.getActiveSkills(); if (skills[2]) combatSkill(skills[2].key); }
+        else if (e.key === '7') { const skills = player.getActiveSkills(); if (skills[3]) combatSkill(skills[3].key); }
     }
 });
 
@@ -863,6 +952,11 @@ function showLoggedOut() {
     document.getElementById('auth-error').textContent = '';
     gameState = STATE.TITLE;
 }
+
+// Class selection
+document.querySelectorAll('.class-card').forEach(card => {
+    card.addEventListener('click', () => selectClass(card.dataset.class));
+});
 
 // --- Init ---
 detectMobile();

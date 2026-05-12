@@ -31,6 +31,31 @@
                 </div>
             </div>
 
+            <!-- Class selection -->
+            <div id="class-select" class="hidden">
+                <h2>选择职业</h2>
+                <div id="class-cards">
+                    <div class="class-card" data-class="warrior">
+                        <div class="class-icon">⚔️</div>
+                        <div class="class-name">战士</div>
+                        <div class="class-desc">均衡输出 · 物理伤害</div>
+                        <div class="class-skill">初始: 🌪️ 旋风斩 150%</div>
+                    </div>
+                    <div class="class-card" data-class="tank">
+                        <div class="class-icon">🛡️</div>
+                        <div class="class-name">坦克</div>
+                        <div class="class-desc">高防厚血 · 减伤反弹</div>
+                        <div class="class-skill">初始: 🧱 盾墙 减伤50%</div>
+                    </div>
+                    <div class="class-card" data-class="mage">
+                        <div class="class-icon">🧙</div>
+                        <div class="class-name">法师</div>
+                        <div class="class-desc">高伤脆皮 · 元素伤害</div>
+                        <div class="class-skill">初始: 🔥 火球术 200%</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Logged-in: Game actions -->
             <div id="logged-section" class="hidden">
                 <p id="welcome-msg"></p>
@@ -205,6 +230,7 @@
                     <button id="btn-potion">🧪 药水</button>
                     <button id="btn-flee">🏃 逃跑</button>
                 </div>
+                <div id="skill-buttons" class="skill-buttons"></div>
             </div>
         </div>
 
