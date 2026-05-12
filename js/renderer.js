@@ -117,7 +117,7 @@ class Renderer {
             for (let x = startCol; x < endCol; x++) {
                 const cell = d.getTile(x, y);
                 if (cell.visible && cell.explored && cell.entity !== ENTITY.NONE) {
-                    this.drawEntity(x * CELL_SIZE, y * CELL_SIZE, cell.entity, cell.monsterData);
+                    this.drawEntity(x * CELL_SIZE, y * CELL_SIZE, cell.entity, cell.monsterData, cell.lootData);
                 }
             }
         }
@@ -133,12 +133,14 @@ class Renderer {
         this.drawFog(cw, ch);
     }
 
-    drawEntity(px, py, entity, monsterData) {
+    drawEntity(px, py, entity, monsterData, lootData) {
         const ctx = this.ctx;
         const cx = px + CELL_SIZE / 2;
         const cy = py + CELL_SIZE / 2;
 
-        if (entity === ENTITY.SILVER_CHEST) {
+        if (entity === ENTITY.LOOT) {
+            this.drawLoot(px, py, lootData);
+        } else if (entity === ENTITY.SILVER_CHEST) {
             // Large Silver Chest (~32x24)
             ctx.fillStyle = '#606060';
             ctx.fillRect(px - 5, py - 2, 28, 16);
@@ -194,6 +196,44 @@ class Renderer {
         } else if (entity === ENTITY.MONSTER) {
             this.drawMonster(cx, cy, monsterData);
         }
+    }
+
+    drawLoot(px, py, item) {
+        if (!item) return;
+        const ctx = this.ctx;
+        const rarityColors = {
+            'rarity-common': '#aaa',
+            'rarity-rare': '#4da6ff',
+            'rarity-epic': '#c44dff',
+            'rarity-legendary': '#ff8c00',
+        };
+        const color = rarityColors[item.rarity.color] || '#aaa';
+        const cx = px + CELL_SIZE / 2;
+        const baseY = py + CELL_SIZE / 2;
+
+        // Light beam (vertical gradient, fading upward)
+        const beamH = 48;
+        const grad = ctx.createLinearGradient(cx, baseY, cx, baseY - beamH);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.3, color);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(cx - 3, baseY - beamH, 6, beamH);
+        ctx.globalAlpha = 1.0;
+
+        // Glow circle at base
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.arc(cx, baseY, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        // Item icon (small colored gem)
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(cx, baseY, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
     }
 
     drawMonster(cx, cy, data) {

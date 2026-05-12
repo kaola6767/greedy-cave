@@ -7,12 +7,14 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v2.04';
+const GAME_VERSION = 'v2.05';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
 let heldDir = null;
 let moveInterval = null;
+let prevPx = 0;
+let prevPy = 0;
 
 // --- DOM Elements ---
 const titleScreen = document.getElementById('title-screen');
@@ -475,19 +477,21 @@ function movePlayer(dx, dy) {
     if (!dungeon.isWalkable(nx, ny)) return;
 
     const cell = dungeon.getTile(nx, ny);
+    prevPx = player.x;
+    prevPy = player.y;
     player.x = nx;
     player.y = ny;
 
     if (cell.entity === ENTITY.MONSTER) {
-        const monsterData = cell.monsterData;
-        dungeon.removeEntity(nx, ny);
-        startCombat(monsterData);
+        startCombat(cell.monsterData);
+    } else if (cell.entity === ENTITY.LOOT) {
+        pickupLoot(nx, ny);
     } else if (cell.entity === ENTITY.SILVER_CHEST) {
         dungeon.removeEntity(nx, ny);
-        openChest('silver');
+        openChest('silver', nx, ny);
     } else if (cell.entity === ENTITY.GOLD_CHEST) {
         dungeon.removeEntity(nx, ny);
-        openChest('gold');
+        openChest('gold', nx, ny);
     } else if (cell.entity === ENTITY.EXIT) {
         showVictory();
     } else if (cell.entity === ENTITY.POTION) {
@@ -500,6 +504,29 @@ function movePlayer(dx, dy) {
     dungeon.updateVisibility(player.x, player.y, renderer.visionCells || 10);
     renderer.render();
     updateUI();
+}
+
+function dropLoot(x, y, item) {
+    const spots = dungeon.getNearbyEmpty(x, y, 1);
+    if (spots.length === 0) {
+        player.addToInventory(item);
+        return;
+    }
+    const spot = spots[0];
+    dungeon.getTile(spot.x, spot.y).entity = ENTITY.LOOT;
+    dungeon.getTile(spot.x, spot.y).lootData = item;
+}
+
+function pickupLoot(x, y) {
+    const cell = dungeon.getTile(x, y);
+    const item = cell.lootData;
+    if (!item) return;
+    if (player.addToInventory(item)) {
+        cell.entity = ENTITY.NONE;
+        cell.lootData = null;
+        addLog(`拾取: ${item.fullName}`, item.rarity.color);
+        updateUI();
+    }
 }
 
 function startCombat(monsterData) {
@@ -642,9 +669,8 @@ function finishCombat() {
     document.getElementById('btn-flee').disabled = true;
     document.getElementById('skill-buttons').querySelectorAll('button').forEach(b => b.disabled = true);
 
-    const wasFled = combat.fled;
-
     if (combat.playerWon) {
+        dungeon.removeEntity(player.x, player.y);
         dungeon.onMonsterKilled();
         if (!dungeon.isBossFloor && dungeon.exitPlaced) {
             const pct = dungeon.getKillPct();
@@ -660,9 +686,12 @@ function finishCombat() {
         player.gold += goldGained;
         addLog(`获得 ${xpGained} 经验, ${goldGained} 金币`, '#ffd700');
         for (const item of loot) {
-            player.addToInventory(item);
+            dropLoot(player.x, player.y, item);
             addLog(`掉落: ${item.fullName}`, item.rarity.color);
         }
+    } else if (combat.fled) {
+        player.x = prevPx;
+        player.y = prevPy;
     }
 
     setTimeout(() => {
@@ -679,19 +708,19 @@ function finishCombat() {
     }, combat.playerWon ? 800 : 500);
 }
 
-function openChest(type) {
+function openChest(type, cx, cy) {
     if (type === 'gold') {
         const item1 = generateEquipment(floorLevel, RARITIES.find(r => r.name === '稀有'));
         const item2 = generateEquipment(floorLevel, null);
-        player.addToInventory(item1);
-        player.addToInventory(item2);
+        dropLoot(cx, cy, item1);
+        dropLoot(cx, cy, item2);
         addLog(`打开黄金宝箱!`, '#ffd700');
-        addLog(`获得: ${item1.fullName}!`, item1.rarity.color);
-        addLog(`获得: ${item2.fullName}!`, item2.rarity.color);
+        addLog(`掉落: ${item1.fullName}`, item1.rarity.color);
+        addLog(`掉落: ${item2.fullName}`, item2.rarity.color);
     } else {
         const item = generateEquipment(floorLevel, null);
-        player.addToInventory(item);
-        addLog(`打开白银宝箱，获得: ${item.fullName}!`, item.rarity.color);
+        dropLoot(cx, cy, item);
+        addLog(`打开白银宝箱，掉落: ${item.fullName}`, item.rarity.color);
     }
     updateUI();
 }

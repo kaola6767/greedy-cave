@@ -294,6 +294,26 @@ class Dungeon {
         cell.entity = ENTITY.NONE;
     }
 
+    getNearbyEmpty(x, y, count) {
+        const tiles = [];
+        for (let dy = -3; dy <= 3; dy++) {
+            for (let dx = -3; dx <= 3; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                const nx = x + dx, ny = y + dy;
+                const cell = this.getTile(nx, ny);
+                if (cell.tile !== TILE.WALL && cell.entity === ENTITY.NONE) {
+                    tiles.push({ x: nx, y: ny });
+                }
+            }
+        }
+        // Shuffle and take `count`
+        for (let i = tiles.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+        return tiles.slice(0, count);
+    }
+
     updateVisibility(px, py, radius) {
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
