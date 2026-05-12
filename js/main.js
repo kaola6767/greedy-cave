@@ -865,7 +865,16 @@ function finishCombat() {
             gameState = STATE.DUNGEON;
         }
         updateUI();
-        if (gameState === STATE.DUNGEON) renderer.render();
+        if (gameState === STATE.DUNGEON && renderer) {
+            // Force several renders to decay flashes over ~160ms
+            let flashes = 4;
+            const clearFlash = () => {
+                renderer.render();
+                flashes--;
+                if (flashes > 0) setTimeout(clearFlash, 40);
+            };
+            clearFlash();
+        }
     }, combat.playerWon ? 800 : 500);
 }
 

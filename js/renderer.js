@@ -179,16 +179,16 @@ class Renderer {
         // --- MINIMAP ---
         this.drawMinimap(cw, ch);
 
-        // --- HIT FLASH OVERLAY ---
-        if (this.hitFlash > 0.01) {
+        // --- HIT FLASH OVERLAY (fast decay, time-independent) ---
+        if (this.hitFlash > 0.005) {
             ctx.fillStyle = `rgba(255,0,0,${this.hitFlash})`;
             ctx.fillRect(0, 0, cw, ch);
-            this.hitFlash *= 0.85;
+            this.hitFlash *= 0.5;
         }
-        if (this.damageFlash > 0.01) {
+        if (this.damageFlash > 0.005) {
             ctx.fillStyle = `rgba(255,255,255,${this.damageFlash})`;
             ctx.fillRect(0, 0, cw, ch);
-            this.damageFlash *= 0.78;
+            this.damageFlash *= 0.5;
         }
     }
 
