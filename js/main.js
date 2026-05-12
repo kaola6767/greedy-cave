@@ -7,7 +7,7 @@ let renderer;
 let floorLevel = 1;
 let isMobile = false;
 let drawerTab = null;
-const GAME_VERSION = 'v1.6';
+const GAME_VERSION = 'v2.0';
 let restUsed = false;
 let lastMoveTime = 0;
 let lastCombatTime = 0;
@@ -318,8 +318,12 @@ function updateTownUI() {
     }
 }
 
-function renderLeaderboard() {
+async function renderLeaderboard() {
     const list = document.getElementById('leaderboard-list');
+    list.innerHTML = '<div style="color:#888;padding:8px;">☁️ 正在同步云端排行...</div>';
+
+    await syncLeaderboard();
+
     const top = getTopLeaderboard(10);
     let html = '';
     if (top.length === 0) {
@@ -333,8 +337,9 @@ function renderLeaderboard() {
             html += `<div class="lb-row"><span class="lb-rank">${medal}</span><span class="lb-name">${dn}</span><span class="lb-floor">${e.maxFloor}层</span></div>`;
         }
     }
-    html += '<div style="margin-top:10px;display:flex;gap:6px;"><button id="btn-export-lb" class="btn-small">📤 导出</button><button id="btn-import-lb" class="btn-small">📥 导入</button></div>';
+    html += '<div style="margin-top:10px;display:flex;gap:6px;"><button id="btn-refresh-lb" class="btn-small">🔄 刷新</button><button id="btn-export-lb" class="btn-small">📤 导出</button><button id="btn-import-lb" class="btn-small">📥 导入</button></div>';
     list.innerHTML = html;
+    document.getElementById('btn-refresh-lb').onclick = () => renderLeaderboard();
     document.getElementById('btn-export-lb').onclick = () => {
         const json = exportLeaderboard();
         navigator.clipboard.writeText(json).then(() => addLog('排行榜已复制到剪贴板!', '#44ff44'));

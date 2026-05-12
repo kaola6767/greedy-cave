@@ -104,14 +104,61 @@ function restoreProgress(player, floorLevel) {
     return save.floorLevel || 1;
 }
 
-// --- Leaderboard (localStorage) ---
+// --- Leaderboard (localStorage + jsonbin.io cloud sync) ---
 const LB_KEY = 'greedyLeaderboard';
+const LB_BIN_ID = '6a0284f8250b1311c3383705';
+const LB_ACCESS_KEY = '$2a$10$Fx/eif7M7s1OaoSfbHMea.R6gnLXkQhF21vkFtSddmtIJk2R6Ni/K';
+const LB_MASTER_KEY = '$2a$10$UPFaREbmCKing4RzKWSmuuhTTnt/GZ6mlkgH9U.sAWI5IAruPFn/6';
 
 function getLeaderboard() {
     try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch { return []; }
 }
 function saveLeaderboard(data) {
     localStorage.setItem(LB_KEY, JSON.stringify(data));
+}
+
+async function fetchCloudLeaderboard() {
+    try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${LB_BIN_ID}/latest`, {
+            headers: { 'X-Access-Key': LB_ACCESS_KEY }
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json.record || [];
+    } catch {
+        return null;
+    }
+}
+
+async function pushCloudLeaderboard(data) {
+    try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${LB_BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': LB_MASTER_KEY,
+                'X-Bin-Versioning': 'false'
+            },
+            body: JSON.stringify(data)
+        });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
+
+function mergeLeaderboard(a, b) {
+    const merged = [...a];
+    for (const e of b) {
+        const existing = merged.find(x => x.name === e.name);
+        if (existing) {
+            if (e.maxFloor > existing.maxFloor) existing.maxFloor = e.maxFloor;
+            if (e.updatedAt > existing.updatedAt) existing.updatedAt = e.updatedAt;
+        } else {
+            merged.push({ name: e.name, maxFloor: e.maxFloor, updatedAt: e.updatedAt });
+        }
+    }
+    return merged;
 }
 
 function updateMaxFloor(floorLevel) {
@@ -128,7 +175,22 @@ function updateMaxFloor(floorLevel) {
         return { ok: false, msg: '未超过最高记录' };
     }
     saveLeaderboard(lb);
+    pushCloudLeaderboard(lb);
     return { ok: true };
+}
+
+async function syncLeaderboard() {
+    const cloud = await fetchCloudLeaderboard();
+    if (cloud && cloud.length > 0) {
+        const local = getLeaderboard();
+        const merged = mergeLeaderboard(local, cloud);
+        saveLeaderboard(merged);
+        pushCloudLeaderboard(merged);
+        return merged;
+    }
+    const local = getLeaderboard();
+    if (local.length > 0) pushCloudLeaderboard(local);
+    return local;
 }
 
 function getTopLeaderboard(n) {
@@ -138,20 +200,14 @@ function getTopLeaderboard(n) {
 function exportLeaderboard() {
     return JSON.stringify(getLeaderboard(), null, 2);
 }
+
 function importLeaderboard(json) {
     try {
         const data = JSON.parse(json);
         if (!Array.isArray(data)) return false;
         const lb = getLeaderboard();
-        for (const e of data) {
-            const existing = lb.find(x => x.name === e.name);
-            if (existing) {
-                if (e.maxFloor > existing.maxFloor) existing.maxFloor = e.maxFloor;
-            } else {
-                lb.push(e);
-            }
-        }
-        saveLeaderboard(lb);
+        const merged = mergeLeaderboard(lb, data);
+        saveLeaderboard(merged);
         return true;
     } catch { return false; }
 }
